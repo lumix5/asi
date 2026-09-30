@@ -900,3 +900,58 @@ def test_floor_and_renormalize_probabilities_returns_simplex_on_zero_and_extreme
         np.testing.assert_allclose(float(jnp.sum(out)), 1.0, atol=1e-5)
         assert np.all(np.asarray(out) >= 1e-6)
 
+
+def _large_scale_two_action_model() -> tuple[BehaviorModel, Any, Any]:
+    """Return a T=0.7 model, an applied-update state, and its observation.
+
+    One finite applied update from ``init`` drives ``|logits / T|`` past the
+    regime where XLA:CPU fuses the temperature product into the softmax
+    max-subtraction (see SlopDotCash/asi#2886). Every call below stays
+    unbatched: ``jit(vmap(...))`` over these rows masks the defect.
+    """
+    model = BehaviorModel(BehaviorModelConfig(n_actions=2, temperature=0.7))
+    state = model.init(1, jax.random.key(0))
+    observation = jnp.asarray([6e5], dtype=jnp.float32)
+    action = jnp.asarray(0, dtype=jnp.int32)
+    first = model.update(state, observation, action)
+    assert bool(first.update_applied)
+    return model, first.state, observation
+
+
+def test_compiled_predict_probabilities_stay_finite_after_large_scale_update() -> None:
+    model, state, observation = _large_scale_two_action_model()
+    probabilities = np.asarray(model.predict_probabilities(state, observation))
+    logits = np.asarray(model.predict_logits(state, observation))
+    eager = np.asarray(jax.nn.softmax(logits / 0.7))
+    assert np.all(np.isfinite(eager))
+    assert np.all(np.isfinite(probabilities))
+    np.testing.assert_allclose(float(np.sum(probabilities)), 1.0, atol=1e-6)
+    assert int(np.argmax(probabilities)) == int(np.argmax(eager))
+
+
+def test_compiled_input_loss_gradient_stays_valid_after_large_scale_update() -> None:
+    model, state, observation = _large_scale_two_action_model()
+    result = model.input_loss_gradient(
+        state, observation, jnp.asarray(0, dtype=jnp.int32)
+    )
+    assert bool(result.valid)
+    assert np.all(np.isfinite(np.asarray(result.probabilities)))
+    assert np.isfinite(float(result.loss))
+    assert np.all(np.isfinite(np.asarray(result.gradient)))
+
+
+def test_compiled_follow_up_update_applies_after_large_scale_update() -> None:
+    model, state, observation = _large_scale_two_action_model()
+    second = model.update(state, observation, jnp.asarray(0, dtype=jnp.int32))
+    assert bool(second.update_applied)
+    assert np.all(np.isfinite(np.asarray(second.probabilities)))
+
+
+def test_compiled_sample_action_follows_learned_policy_after_large_scale_update() -> None:
+    model, state, observation = _large_scale_two_action_model()
+    sample = model.sample_action(state, observation)
+    probabilities = np.asarray(sample.probabilities)
+    assert np.all(np.isfinite(probabilities))
+    assert int(sample.action) == int(np.argmax(probabilities)) == 0
+    assert np.isfinite(float(sample.action_probability))
+
