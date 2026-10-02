@@ -25,7 +25,9 @@ def test_mpc_rejects_unbounded_horizon_before_product_hang() -> None:
     started = time.perf_counter()
     with pytest.raises(ValueError, match="planning_horizon"):
         _mpc_action(observation, goal, MAX_PLANNING_HORIZON + 6, _identity_predict)
-    assert time.perf_counter() - started < 0.25
+    # Not a latency contract: only guards the product-enumeration hang. 5 s
+    # tolerates shared-CI-runner load; 0.25 s flaked at 0.60 s in run 36962287499.
+    assert time.perf_counter() - started < 5.0
 
 
 def test_mpc_enumerates_the_public_horizon_bound() -> None:

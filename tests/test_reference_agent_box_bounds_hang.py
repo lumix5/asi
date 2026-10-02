@@ -29,7 +29,9 @@ def test_box_rejects_oversized_range_bounds_before_tuple_hang() -> None:
             high=range(_MAX_ARRAY_ELEMENTS + 1),
             semantic_id="obs",
         )
-    assert time.perf_counter() - started < 0.25
+    # Not a latency contract: only guards the tuple()/convert hang. 5 s
+    # tolerates shared-CI-runner load; 0.25 s flaked at 0.60 s in run 36962287499.
+    assert time.perf_counter() - started < 5.0
 
 
 def test_box_rejects_oversized_range_shape_before_tuple_hang() -> None:
@@ -42,7 +44,9 @@ def test_box_rejects_oversized_range_shape_before_tuple_hang() -> None:
             high=None,
             semantic_id="obs",
         )
-    assert time.perf_counter() - started < 0.25
+    # Not a latency contract: only guards the tuple()/convert hang. 5 s
+    # tolerates shared-CI-runner load; 0.25 s flaked at 0.60 s in run 36962287499.
+    assert time.perf_counter() - started < 5.0
 
 
 def test_box_encode_rejects_oversized_range_before_numpy_convert() -> None:
@@ -56,7 +60,9 @@ def test_box_encode_rejects_oversized_range_before_numpy_convert() -> None:
     started = time.perf_counter()
     with pytest.raises(ValueError, match="array element limit"):
         spec.encode(range(_MAX_ARRAY_ELEMENTS + 1))
-    assert time.perf_counter() - started < 0.25
+    # Not a latency contract: only guards the numpy conversion hang. 5 s
+    # tolerates shared-CI-runner load; 0.25 s flaked at 0.60 s in run 36962287499.
+    assert time.perf_counter() - started < 5.0
 
 
 def test_box_still_accepts_matched_bounds() -> None:
