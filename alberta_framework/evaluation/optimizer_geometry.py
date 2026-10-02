@@ -154,31 +154,38 @@ def orthogonal_correction(update: Array, protected_basis: Array) -> Array:
     )
 
 
-def _nonzero_magnitude_bits(value: Array) -> Array:
-    """Report whether any entry has a magnitude bit set, subnormal entries included.
+def _magnitude_bits_present(value: Array) -> Array:
+    """Report per entry whether a magnitude bit is set, subnormal entries included.
 
     No float comparison can answer this on a backend that flushes subnormal
     operands: ``x != 0.0`` is ``False`` for every float32 subnormal, and every
     reduction over such entries returns exactly zero, so the magnitude bit pattern
-    is the only surviving witness that the input was not a zero matrix. Masking the
-    sign bit keeps both signed zeros reading as zero.
+    is the only surviving witness that an entry was not zero. Masking the
+    sign bit keeps both signed zeros reading as zero. The witness is per entry
+    because the arithmetic can destroy only part of an input: one surviving
+    entry keeps the maximum reduction nonzero while the others are lost.
     """
     width = value.dtype.itemsize
     unsigned = np.dtype(f"uint{8 * width}")
     bits = jax.lax.bitcast_convert_type(value, unsigned)
     magnitude_mask = jnp.asarray((1 << (8 * width - 1)) - 1, dtype=unsigned)
-    return jnp.any(jnp.bitwise_and(bits, magnitude_mask) != 0)
+    return jnp.bitwise_and(bits, magnitude_mask) != 0
+
+
+def _nonzero_magnitude_bits(value: Array) -> Array:
+    """Report whether any entry has a magnitude bit set, subnormal entries included."""
+    return jnp.any(_magnitude_bits_present(value))
 
 
 def spectral_matrix_sign_transaction(matrix: Array, *, steps: int = 5) -> tuple[Array, Array]:
     """Apply Muon-OGD v2's cubic NS5 matrix-sign approximation.
 
-    The pinned paper defines ``f(X) = 3/2 X - 1/2 XX^T X``. Frobenius
+    A matrix whose entries the arithmetic has partially or entirely destroyed
+    is invalid. The pinned paper defines ``f(X) = 3/2 X - 1/2 XX^T X``. Frobenius
     normalization places every singular value in its convergence interval and
     preserves an exact zero for a zero matrix. The normalization divides an
     exactly power-of-two rescaled copy by its own norm so the divisor stays
     representable at every input magnitude.
-    A matrix whose entries the backend has flushed entirely is invalid.
     """
     value = _trusted_array(matrix, name="matrix")
     if (
@@ -195,13 +202,26 @@ def spectral_matrix_sign_transaction(matrix: Array, *, steps: int = 5) -> tuple[
     # float32 operands are flushed, so `jnp.max(jnp.abs(value))` is exactly zero
     # for a full-rank matrix whose entries are all subnormal, and every later step
     # then agrees it is the zero matrix: the function would certify a rank-0
-    # answer for a rank-2 input. Comparing that against the bitwise witness is
-    # what separates the two cases, because no float comparison can: `x != 0.0`
-    # and `x > 0.0` are both False for such an entry. Overflow at the other end of
-    # the range is already reported invalid rather than laundered, and a magnitude
-    # the arithmetic has entirely lost gets the same disposition. Entries that are
-    # merely small keep a nonzero maximum and are untouched here.
-    destroyed = _nonzero_magnitude_bits(value) & (jnp.max(jnp.abs(value)) == 0.0)
+    # answer for a rank-2 input. The destruction can also be partial: `jnp.ldexp`
+    # returns a float32 subnormal operand unchanged, so the lift cannot raise
+    # those entries, and the quotient by `rescaled_norm` then flushes exactly
+    # them to zero while the largest entry survives. Comparing the bitwise
+    # per-entry witness against the normalized matrix is what separates loss
+    # from a true zero, because no float comparison can: `x != 0.0` and
+    # `x > 0.0` are both False for a flushed entry. An entry the arithmetic
+    # dropped gets the same disposition as an entirely flushed matrix, and a
+    # magnitude that overflows is already reported invalid rather than
+    # laundered. Entries that are merely small stay nonzero and are untouched.
+    _, exponent = jnp.frexp(jnp.max(jnp.abs(value)))
+    rescaled = jnp.ldexp(value, -exponent)
+    rescaled_norm = jnp.linalg.norm(rescaled)
+    positive = rescaled_norm > 0
+    x = jnp.where(
+        positive,
+        rescaled / jnp.where(positive, rescaled_norm, jnp.ones_like(rescaled_norm)),
+        jnp.zeros_like(rescaled),
+    )
+    destroyed = jnp.any(_magnitude_bits_present(value) & (x == 0.0))
     valid = (
         jnp.all(jnp.isfinite(value)) & jnp.isfinite(norm) & jnp.logical_not(destroyed)
     )
@@ -212,15 +232,6 @@ def spectral_matrix_sign_transaction(matrix: Array, *, steps: int = 5) -> tuple[
     # a nonzero matrix into a numerically zero sign. Rescaling by an exact power
     # of two keeps the divisor representable without changing any quotient that
     # was already correct, and an exact zero is preserved by the zero test.
-    _, exponent = jnp.frexp(jnp.max(jnp.abs(value)))
-    rescaled = jnp.ldexp(value, -exponent)
-    rescaled_norm = jnp.linalg.norm(rescaled)
-    positive = rescaled_norm > 0
-    x = jnp.where(
-        positive,
-        rescaled / jnp.where(positive, rescaled_norm, jnp.ones_like(rescaled_norm)),
-        jnp.zeros_like(rescaled),
-    )
     if x.shape[0] > x.shape[1]:
         x = x.T
         transposed = True

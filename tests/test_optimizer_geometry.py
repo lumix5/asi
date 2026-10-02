@@ -429,8 +429,14 @@ _DESTROYED_SCALES = [
     np.float32(1.147944e-41),
     np.float32(1.401298e-45),
 ]
+# The largest entry of this matrix is exactly the smallest normal float, so the
+# max reduction survives while every other entry stays subnormal: a partial
+# flush. `jnp.ldexp` returns a float32 subnormal operand unchanged, and the
+# quotient by the rescaled norm then flushes those entries to zero, so the
+# arithmetic loses three of four directions before the iteration. The answer
+# would be a rank-1 matrix certified valid, so the transaction fails closed.
+_PARTIAL_FLUSH_SCALE = np.float32(5.877472e-39)
 _SURVIVING_SCALES = [
-    np.float32(5.877472e-39),
     np.float32(1e-30),
     np.float32(1e-20),
     np.float32(1.0),
@@ -463,14 +469,9 @@ def test_geometry_float32_flushed_entries_are_invalid_not_laundered(scale: np.fl
 
 @pytest.mark.parametrize("scale", _SURVIVING_SCALES)
 def test_geometry_guard_leaves_every_representable_magnitude_alone(scale: np.float32) -> None:
-    # The guard fires on exactly one condition: the bits say there is an entry and
-    # the arithmetic says the largest magnitude is zero. A matrix that keeps a
-    # nonzero maximum is normalized by whatever divisor this revision chooses, and
-    # this test only pins that the guard is not what decides it. The smallest
-    # scale here is the mixed case whose largest entry is the smallest normal
-    # float and whose subnormal entries are still lost inside the normalization;
-    # recovering those needs each entry weighed against the maximum, which #2391
-    # tracks separately.
+    # Every entry here is a normal float32, so the power-of-two lift and the
+    # division keep every direction the input carried. This pins that the
+    # flushed-entry guard does not reject representable magnitudes.
     matrix = _scaled_matrix(scale)
     assert float(jnp.max(jnp.abs(matrix))) > 0.0
     for transaction in (
@@ -480,6 +481,26 @@ def test_geometry_guard_leaves_every_representable_magnitude_alone(scale: np.flo
         safe, valid = transaction(matrix)
         assert bool(valid)
         assert bool(jnp.all(jnp.isfinite(safe)))
+
+
+def test_geometry_partially_flushed_entries_are_invalid_not_laundered() -> None:
+    matrix = _scaled_matrix(_PARTIAL_FLUSH_SCALE)
+    # The premise: the max reduction still sees an entry, float64 still holds
+    # the full rank-2 direction, and the old answer certified a rank-1 sign.
+    assert float(jnp.max(jnp.abs(matrix))) > 0.0
+    assert float(np.linalg.norm(np.asarray(matrix, dtype=np.float64))) > 0.0
+    assert len(np.linalg.svd(np.asarray(matrix, dtype=np.float64), compute_uv=False)) == 2
+
+    for transaction in (
+        spectral_matrix_sign_transaction,
+        jax.jit(spectral_matrix_sign_transaction),
+    ):
+        safe, valid = transaction(matrix)
+        assert bool(jnp.all(jnp.isfinite(safe)))
+        assert not bool(valid)
+
+    with pytest.raises(ValueError, match="matrix sign must be finite"):
+        spectral_matrix_sign(matrix)
 
 
 def test_geometry_dual_update_flushes_the_entries_before_the_guard_can_see_them() -> None:
