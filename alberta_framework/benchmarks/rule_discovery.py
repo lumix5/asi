@@ -467,6 +467,26 @@ def _loss_logits(
     return -jax.nn.log_softmax(logits)[y], (logits, hidden)
 
 
+def _nb_vote_log_probs(nb_ll: Array, scale: float) -> Array:
+    """Return the naive-Bayes ensemble-member vote log-probabilities.
+
+    Regression guard for the SlopDotCash/asi#2886 rule-discovery site: XLA
+    recomputes the quotient ``nb_ll / scale`` (an inexact reciprocal multiply
+    for a non-power-of-two ``scale``) inside both fusions that log-softmax
+    lowers to, so the compiled normalisation returns ``inf``/``0/0`` once
+    ``|nb_ll / scale|`` reaches about 2**31 while eager stays finite. The
+    compiled ``inf`` vote then wins ``argmax`` deterministically and silently
+    corrupts the member-accuracy EMAs and the arm's accuracy telemetry.
+    Subtracting a maximum on both sides of the scale blocks both
+    recomputations; log-softmax is shift invariant, so both subtractions are
+    exact rather than approximations. ``stop_gradient`` keeps the maxima fixed
+    points out of any differentiation through the vote.
+    """
+    centered = nb_ll - jax.lax.stop_gradient(jnp.max(nb_ll))
+    scaled = centered / scale
+    return jax.nn.log_softmax(scaled - jax.lax.stop_gradient(jnp.max(scaled)))
+
+
 def rule_step(
     genome: Array,
     params: dict[str, Array],
@@ -560,7 +580,7 @@ def rule_step(
     )
     s_net = jax.nn.log_softmax(logits)
     s_rls = jax.nn.log_softmax(_RLS_VOTE_TEMP * rls_scores)
-    s_nb = jax.nn.log_softmax(nb_ll / float(input_dim))
+    s_nb = _nb_vote_log_probs(nb_ll, float(input_dim))
     w_net = state.member_acc[0]
     w_rls = f_rls * state.member_acc[1]
     w_nb = f_nb * state.member_acc[2]

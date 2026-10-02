@@ -867,6 +867,44 @@ class TestExpandedMechanisms:
         assert float(jnp.abs(new_state.member_acc - state.member_acc).sum()) > 0.0
 
 
+def test_nb_vote_log_probs_compiled_matches_eager_at_float32_extremes() -> None:
+    """The naive-Bayes vote must stay finite and match eager under per-row jit.
+
+    Regression for SlopDotCash/asi#2886's rule-discovery vote site: the
+    quotient ``nb_ll / float(input_dim)`` is an inexact reciprocal multiply
+    for a non-power-of-two feature count, and XLA recomputes it inside both
+    fusions log-softmax lowers to, so past ``|nb_ll / scale| ~ 2**31`` the
+    compiled vote returned ``inf`` while eager stayed finite. The compiled
+    ``inf`` row then wins ``argmax`` deterministically and silently corrupts
+    the member-accuracy EMAs and the arm's accuracy telemetry. Probes stay
+    per-row on purpose: batched ``vmap`` fusions were measured to mask the
+    defect, so a batched sweep proves nothing about this class.
+    """
+    import jax
+
+    n_features = 784  # non-power-of-two, as in the real lane
+    n_classes = 3
+    # Legal site inputs: class variances at the module's own floor and an
+    # observation far from every class mean. Everything stays finite, but
+    # |nb_ll / scale| lands past the measured 2**31 onset.
+    nb_var = jnp.full((n_classes, n_features), rule_discovery._NB_VAR_FLOOR)
+    nb_mean = jnp.zeros((n_classes, n_features), dtype=jnp.float32)
+    x = jnp.full((1, n_features), 2.5e3, dtype=jnp.float32)
+    nb_ll = -0.5 * jnp.sum(jnp.log(nb_var) + (x - nb_mean) ** 2 / nb_var, axis=1)
+    scale = float(n_features)
+    assert abs(float(jnp.max(jnp.abs(nb_ll)))) / scale > 2.0**31
+
+    # jit exactly like the site: the scale closes over as a Python float.
+    compiled = jax.jit(lambda nb: rule_discovery._nb_vote_log_probs(nb, scale))(nb_ll)
+    eager = rule_discovery._nb_vote_log_probs(nb_ll, scale)
+    assert bool(jnp.all(jnp.isfinite(compiled)))
+    assert bool(jnp.all(jnp.isfinite(eager)))
+    np.testing.assert_allclose(
+        np.asarray(compiled), np.asarray(eager), rtol=1e-5, atol=1e-5
+    )
+    assert int(jnp.argmax(compiled)) == int(jnp.argmax(eager))
+
+
 class TestGaussFitness:
     """The search fitness migrates to the transfer-validated gauss-v1 suite."""
 
