@@ -74,36 +74,61 @@ def _resource_counts(n_actions: int, feature_dim: int) -> tuple[int, int]:
     return trainable, state_nbytes
 
 
+def _temperature_centered_logits(
+    logits: Float[Array, " n_actions"],
+    temperature: float,
+) -> Float[Array, " n_actions"]:
+    """Twice-center ``logits / temperature`` so fused softmax stays exact.
+
+    Under ``jax.jit`` on XLA:CPU, ``softmax(logits / T)`` with a
+    non-power-of-two ``T`` can return NaN for finite inputs once
+    ``|logits / T|`` is large: the scale product is recomputed inside the
+    subtract-exponential fusion and LLVM contracts ``scaled - max(scaled)``
+    into one FMA, so the argmax difference is the product rounding error
+    instead of exactly zero, and the exponential overflows (``inf/inf``) or
+    underflows (``0/0``) (SlopDotCash/asi#2886).
+
+    Both centerings below are exact (softmax and log-softmax are shift
+    invariant) and each blocks one half of that failure:
+
+    - The first centering's output feeds both the second ``max`` reduction
+      and the second subtraction, so the compiler must materialize it rather
+      than re-form the scale product next to a second subtraction.
+    - The second centering subtracts the first centering's own maximum, so
+      even when contraction leaves a positive rounding residual at the argmax,
+      that residual is removed exactly before the exponential.
+
+    The centerings operate on the *scaled* values, never on the raw logits:
+    subtracting the raw maximum can overflow to ``-inf`` for opposite finite
+    extremes whose pairwise distance exceeds the float32 maximum (for example
+    ``[3.2e38, -0.4e38]`` at ``temperature=2.0``), a regime where the plain
+    ``logits / temperature`` expression stays finite and must stay finite.
+    Centering after the scale therefore keeps every intermediate finite
+    wherever ``jax.nn.softmax(logits / temperature)`` is finite, and — on a
+    backend that does not contract the first subtraction — is bitwise
+    identical to it. Gradients are unaffected: the ``stop_gradient`` maxima
+    are piecewise constant almost everywhere, so the centerings contribute
+    exactly the same softmax gradient as the plain expression.
+    """
+    scaled = logits / temperature
+    centered = scaled - jax.lax.stop_gradient(jnp.max(scaled))
+    return centered - jax.lax.stop_gradient(jnp.max(centered))
+
+
 def _stable_temperature_softmax(
     logits: Float[Array, " n_actions"],
     temperature: float,
 ) -> Float[Array, " n_actions"]:
-    """Softmax over temperature-scaled logits, robust to XLA fusion contraction.
-
-    Under ``jax.jit`` on XLA:CPU, ``softmax(logits / T)`` with a
-    non-power-of-two ``T`` can return NaN for finite inputs once
-    ``|logits / T|`` is large: the scale product is recomputed inside both
-    softmax fusions and LLVM contracts ``scaled - max(scaled)`` into one FMA,
-    so the argmax difference is the product rounding error instead of exactly
-    zero, and the exponential overflows (``inf/inf``) or underflows (``0/0``).
-    Subtracting the maximum on both sides of the scale keeps an exact zero at
-    the argmax in each fusion. Both subtractions are exact (softmax is shift
-    invariant) and neither alone suffices. Gradients are unaffected: the
-    ``stop_gradient`` maxima are piecewise constant almost everywhere.
-    """
-    centered = logits - jax.lax.stop_gradient(jnp.max(logits))
-    scaled = centered / temperature
-    return jax.nn.softmax(scaled - jax.lax.stop_gradient(jnp.max(scaled)))
+    """Softmax over temperature-scaled logits; see :func:`_temperature_centered_logits`."""
+    return jax.nn.softmax(_temperature_centered_logits(logits, temperature))
 
 
 def _stable_temperature_log_softmax(
     logits: Float[Array, " n_actions"],
     temperature: float,
 ) -> Float[Array, " n_actions"]:
-    """Log-softmax over temperature-scaled logits; see :func:`_stable_temperature_softmax`."""
-    centered = logits - jax.lax.stop_gradient(jnp.max(logits))
-    scaled = centered / temperature
-    return jax.nn.log_softmax(scaled - jax.lax.stop_gradient(jnp.max(scaled)))
+    """Log-softmax over temperature-scaled logits; see :func:`_temperature_centered_logits`."""
+    return jax.nn.log_softmax(_temperature_centered_logits(logits, temperature))
 
 
 # Matches the class of ceiling already established for other scan-driven
