@@ -1108,3 +1108,50 @@ def test_validate_cli_accepts_the_canonical_plan(
     result = json.loads(capsys.readouterr().out)
     assert result["valid"] is True
     assert result["evidence_policy"]["permanently_nonpromoting"] is True
+
+
+def test_resolved_components_are_stable_under_stationary_solver_last_ulp_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Canonical resolved components must not depend on LAPACK kernel noise.
+
+    The aggregate validator rebuilds one runner per shard record and compares
+    ``$.resolved`` bitwise against the record. ``RiverSwimMDP`` resolves its
+    stationary oracle through ``numpy.linalg.lstsq``, so a runner built on a
+    different host's LAPACK kernel produced digests that reject records from
+    another kernel (run 34950746882: all 144 shard jobs validated their own
+    records; the aggregate rejected 26 RiverSwim records). The environment
+    binds a lattice-canonical oracle value, so this comparison must hold even
+    under a one-ulp perturbation of every ``lstsq`` result.
+    """
+    plan = build_development_plan()
+    spec = next(
+        entry
+        for entry in scorecard.iter_run_specs(plan)
+        if entry.environment_kind == "riverswim" and entry.arm == "prototype"
+    )
+
+    baseline = scorecard._resolved_components(
+        plan, spec, scorecard.build_scorecard_runner(plan, spec)
+    )
+
+    real_lstsq = np.linalg.lstsq
+
+    def drifted_lstsq(*args: Any, **kwargs: Any) -> Any:
+        """Return the LAPACK solution perturbed by solver-noise-scale drift.
+
+        The relative perturbation (2^-40, about 1e-12) stays nine decimal
+        orders below the float32 lattice resolution while remaining large
+        enough to survive the solver's final normalization and rounding, so
+        the simulated kernel difference cannot vanish by coincidence.
+        """
+        solution, residuals, rank, singular_values = real_lstsq(*args, **kwargs)
+        nudged = solution * (1.0 + 2.0**-40)
+        return nudged, residuals, rank, singular_values
+
+    monkeypatch.setattr(np.linalg, "lstsq", drifted_lstsq)
+    drifted = scorecard._resolved_components(
+        plan, spec, scorecard.build_scorecard_runner(plan, spec)
+    )
+
+    assert scorecard._json_exact_equal(drifted, baseline)

@@ -57,6 +57,7 @@ from alberta_framework.reference_life import (
     SwitchingTwoStateReferenceEnvironment,
     build_prototype_riverswim_life,
     build_prototype_switching_life,
+    canonical_riverswim_oracle_average_reward,
 )
 from alberta_framework.streams.closed_loop import (
     RiverSwimConfig,
@@ -2295,7 +2296,7 @@ def _validate_completed_outcome(
             initial_state=protocol["initial_state"],
         )
         river = RiverSwimMDP(river_config)
-        oracle_rewards = [river.optimal_average_reward(), 0.0]
+        oracle_rewards = [canonical_riverswim_oracle_average_reward(river), 0.0]
         possible_rewards = (0.0, protocol["reward_left"], protocol["reward_right"])
         minimum_reward = min(possible_rewards)
         maximum_reward = max(possible_rewards)
@@ -2518,7 +2519,7 @@ def _validate_partial_outcome(
                 initial_state=protocol["initial_state"],
             )
         )
-        oracle_rewards = [river.optimal_average_reward(), 0.0]
+        oracle_rewards = [canonical_riverswim_oracle_average_reward(river), 0.0]
         river_rewards = (0.0, protocol["reward_left"], protocol["reward_right"])
         if not _reward_lattice_matches(
             phase_reward_values[0], event_count=accepted, reward_values=river_rewards

@@ -29,6 +29,10 @@ from alberta_framework.reference_life import (
     RiverSwimReferenceEnvironment,
     build_prototype_riverswim_life,
 )
+from alberta_framework.reference_life_controls import (
+    UniformRandomReferenceAdapter,
+    UniformRandomReferenceConfig,
+)
 from alberta_framework.streams.closed_loop import RiverSwimConfig, RiverSwimMDP
 
 pytestmark = pytest.mark.unit
@@ -355,3 +359,65 @@ def test_riverswim_reference_life_runs_five_keyed_events_without_extra_dispatch(
     )
     with pytest.raises(DecisionOwnershipError, match="completed"):
         runner.step(state)
+
+
+def test_environment_identity_is_stable_under_stationary_solver_last_ulp_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One ulp of LAPACK drift must not move the bound environment identity.
+
+    ``RiverSwimMDP.optimal_average_reward`` resolves the stationary system
+    through ``numpy.linalg.lstsq``, whose least significant bits depend on the
+    host's LAPACK/BLAS kernel. The reference-life manifest, its config digest,
+    and the scorecard's canonical ``resolved`` binding compare these values
+    bitwise across fresh processes, so a kernel-dependent last ulp flips
+    manifest identities and rejects valid shard records at aggregation:
+    run 34950746882 recorded two distinct oracle values (46 versus 26 of the
+    72 RiverSwim shards) and its aggregate job failed on every record from
+    the minority kernel. The bound identity must come from a canonical value
+    instead of re-exposing solver noise.
+    """
+    environment_config = RiverSwimConfig(  # type: ignore[call-arg]
+        n_states=3,
+        p_right_up=0.5,
+        p_right_down=0.25,
+        reward_left=0.01,
+        reward_right=1.0,
+        initial_state=0,
+    )
+    adapter = UniformRandomReferenceAdapter(
+        UniformRandomReferenceConfig.for_riverswim(environment_config)
+    )
+    manifest = adapter.manifest  # type: ignore[attr-defined]
+    baseline = RiverSwimReferenceEnvironment(
+        environment_config,
+        observation_spec=manifest.observation_spec,
+        action_spec=manifest.action_spec,
+        executor_id="asi.riverswim.executor",
+        executor_epoch="asi.riverswim.executor_epoch.1",
+    )
+
+    real_lstsq = np.linalg.lstsq
+
+    def drifted_lstsq(*args: Any, **kwargs: Any) -> Any:
+        """Return the LAPACK solution perturbed by solver-noise-scale drift.
+
+        The relative perturbation (2^-40, about 1e-12) stays nine decimal
+        orders below the float32 lattice resolution while remaining large
+        enough to survive the solver's final normalization and rounding, so
+        the simulated kernel difference cannot vanish by coincidence.
+        """
+        solution, residuals, rank, singular_values = real_lstsq(*args, **kwargs)
+        nudged = solution * (1.0 + 2.0**-40)
+        return nudged, residuals, rank, singular_values
+
+    monkeypatch.setattr(np.linalg, "lstsq", drifted_lstsq)
+    drifted = RiverSwimReferenceEnvironment(
+        environment_config,
+        observation_spec=manifest.observation_spec,
+        action_spec=manifest.action_spec,
+        executor_id="asi.riverswim.executor",
+        executor_epoch="asi.riverswim.executor_epoch.1",
+    )
+
+    assert drifted.manifest.descriptor() == baseline.manifest.descriptor()
