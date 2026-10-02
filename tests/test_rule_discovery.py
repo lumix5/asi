@@ -905,6 +905,187 @@ def test_nb_vote_log_probs_compiled_matches_eager_at_float32_extremes() -> None:
     assert int(jnp.argmax(compiled)) == int(jnp.argmax(eager))
 
 
+def test_rule_step_nb_vote_member_acc_matches_float64_reference_when_compiled() -> None:
+    """The compiled ``rule_step`` vote must match an independent reference.
+
+    Integration guard for the same SlopDotCash/asi#2886 site, at the level
+    the defect actually harms: ``rule_step`` consumes
+    ``_nb_vote_log_probs(nb_ll, float(input_dim))`` to pick the naive-Bayes
+    member's vote, and the compiled non-finite rows from the unfixed
+    expression replace the true vote winner at ``argmax``, silently
+    corrupting the ``member_acc`` EMAs (and the arm's accuracy telemetry). Calling the
+    helper directly cannot see a call-site regression, so this test drives
+    the public ``rule_step`` under ``jax.jit`` with legal site inputs whose
+    class-conditional log-likelihoods all sit past the measured ``2**31``
+    onset, and compares the vote-dependent ``member_acc`` state against a
+    float64 numpy reference computed without the production helper.
+
+    Per-row compilation is deliberate: batched ``vmap`` fusions were
+    measured to mask this defect class, so a batched probe proves nothing.
+    """
+    import jax
+
+    config = dict(decode_genome(champion_form_genome()))
+    for flag in FLAG_NAMES:
+        config[flag] = 0.0
+    config["nb_member"] = 1.0
+    # Precondition for the exact reference below: with the norm flag off the
+    # site's x_used is bitwise the raw observation.
+    assert config["norm"] == 0.0
+    genome = jnp.asarray(genome_from_config(config))
+    params, state = _tiny_setup(seed=23)
+
+    n_features = _TINY.input_dim  # 12: non-power-of-two, as in the real lane
+    n_classes = _TINY.n_classes
+    vote_decay = float(config["vote_decay"])
+
+    # Legal site inputs: every class variance at the module's own floor and
+    # an observation far from every class mean, with distinct per-class
+    # offsets so exactly one class is the reference vote winner.
+    x_mean_gap = 100.0
+    obs_value = 5.0e3
+    nb_var = jnp.full((n_classes, n_features), rule_discovery._NB_VAR_FLOOR)
+    nb_mean = jnp.asarray(
+        np.tile(np.arange(n_classes, dtype=np.float64) * x_mean_gap, (n_features, 1)).T,
+        dtype=jnp.float32,
+    )
+    x = jnp.full((n_features,), obs_value, dtype=jnp.float32)
+    y = jnp.asarray(n_classes - 1, dtype=jnp.int32)  # closest mean => reference winner
+    extreme_state = dataclasses.replace(state, nb_mean=nb_mean, nb_var=nb_var)
+
+    # Independent float64 reference: same legal inputs, no production helper.
+    x64 = np.asarray(x, dtype=np.float64)
+    mean64 = np.asarray(nb_mean, dtype=np.float64)
+    var64 = float(rule_discovery._NB_VAR_FLOOR)
+    nb_ll64 = -0.5 * np.sum(np.log(var64) + (x64[None, :] - mean64) ** 2 / var64, axis=1)
+    scale = float(n_features)
+    reference_argmax = int(np.argmax(nb_ll64 / scale))
+    assert reference_argmax == int(y)
+    # Onset precondition: every row's scaled magnitude is past the measured
+    # 2**31 onset, and the float32 rows stay pairwise distinct so the vote
+    # winner is representable.
+    assert np.min(np.abs(nb_ll64)) / scale > 2.0**31
+    nb_ll32 = np.asarray(nb_ll64, dtype=np.float32)
+    pairwise = np.abs(nb_ll32[:, None] - nb_ll32[None, :])
+    np.fill_diagonal(pairwise, np.inf)
+    ulp32 = float(np.spacing(np.float64(abs(float(nb_ll32.flat[0])))))
+    assert float(pairwise.min()) > ulp32
+
+    compiled_step = jax.jit(lambda p, s, xi, yi: rule_step(genome, p, s, xi, yi))
+    _, new_state, correct, loss = compiled_step(params, extreme_state, x, y)
+
+    # The step itself stays finite; the defect's harm is a silently wrong
+    # vote, not an error.
+    assert bool(jnp.isfinite(loss))
+    assert bool(jnp.isfinite(correct))
+    assert bool(jnp.all(jnp.isfinite(new_state.member_acc)))
+
+    old_acc = float(state.member_acc[2])
+    expected_nb_acc = vote_decay * old_acc + (1.0 - vote_decay) * 1.0
+    np.testing.assert_allclose(
+        float(new_state.member_acc[2]), expected_nb_acc, rtol=1e-6, atol=1e-6
+    )
+    assert float(new_state.member_acc[2]) > old_acc
+
+
+def test_rule_step_combined_vote_matches_float64_reference_with_soft_nb_vote() -> None:
+    """The combined vote must use the naive-Bayes log-probs at the site's scale.
+
+    Second integration guard for the same call site, pinning the helper's
+    *semantics* rather than its compiled stability: ``argmax`` of the
+    naive-Bayes member vote is invariant to any positive scale, so the
+    member-accuracy check above cannot see a mutant that drops the
+    ``/ float(input_dim)`` quotient from the helper. The vote *values* do
+    reach observable behavior through the combined ensemble log-probability,
+    so this test injects equal net/naive-Bayes vote weights and constructs
+    legal inputs where the correctly scaled naive-Bayes vote is soft (a few
+    nats of spread) while the unscaled vote would be arbitrarily decisive,
+    flipping the combined winner. ``correct`` is compared against an
+    independent float64 reference that mirrors the flag-off forward pass
+    (plain ReLU MLP, no normalization) and the scaled naive-Bayes vote in
+    numpy, without using any production vote helper.
+    """
+    import jax
+
+    config = dict(decode_genome(champion_form_genome()))
+    for flag in FLAG_NAMES:
+        config[flag] = 0.0
+    config["nb_member"] = 1.0
+    assert config["norm"] == 0.0 and config["rls_head"] == 0.0
+    genome = jnp.asarray(genome_from_config(config))
+
+    n_features = _TINY.input_dim
+    n_classes = _TINY.n_classes
+    params = init_mlp_params(jr.key(23), _TINY)
+
+    # Independent float64 mirror of the flag-off forward pass.
+    x_value = 60.0
+    x64 = np.full((n_features,), x_value, dtype=np.float64)
+    hidden64 = np.maximum(x64 @ np.asarray(params["w1"], np.float64)
+                          + np.asarray(params["b1"], np.float64), 0.0)
+    hidden64 = np.maximum(hidden64 @ np.asarray(params["w2"], np.float64)
+                          + np.asarray(params["b2"], np.float64), 0.0)
+    net_logits64 = hidden64 @ np.asarray(params["w3"], np.float64) + np.asarray(
+        params["b3"], np.float64
+    )
+    y = int(np.argmax(net_logits64))  # the net member's favorite wins the mix
+    loser = int(np.argmin(net_logits64))
+    net_gap = float(net_logits64[y] - net_logits64[loser])
+
+    # Naive-Bayes legal state: unit class variances (the fresh-state value),
+    # the net's favorite *farther* from the observation than the loser, with
+    # scaled vote margin m inside (net_gap / 12, net_gap): the correctly
+    # scaled vote keeps y ahead, while the unscaled (12x more decisive) vote
+    # would hand the combined win to the loser.
+    margin = 4.0
+    variance = 1.0
+    assert 1.5 * margin < net_gap < float(n_features) * margin
+    d_y = 60.0
+    d_loser = float(np.sqrt(d_y * d_y - 2.0 * margin * variance))
+    distances = {index: 100.0 for index in range(n_classes)}
+    distances[y] = d_y
+    distances[loser] = d_loser
+    assert abs(0.5 * (d_y**2 - d_loser**2) / variance - margin) < 1e-6
+
+    nb_mean = jnp.asarray(
+        [[x_value - distances[k]] * n_features for k in range(n_classes)],
+        dtype=jnp.float32,
+    )
+    nb_var = jnp.full((n_classes, n_features), variance, dtype=jnp.float32)
+    state = dataclasses.replace(
+        init_rule_state(params),
+        nb_mean=nb_mean,
+        nb_var=nb_var,
+        member_acc=jnp.asarray([0.5, 0.0, 0.5], dtype=jnp.float32),
+    )
+    x = jnp.full((n_features,), x_value, dtype=jnp.float32)
+
+    # Float64 reference for the combined vote: equal weights on the mirrored
+    # net logits and the correctly scaled naive-Bayes log-probabilities.
+    mean64 = np.asarray(nb_mean, dtype=np.float64)
+    nb_ll64 = -0.5 * np.sum(
+        np.log(variance) + (x64[None, :] - mean64) ** 2 / variance, axis=1
+    )
+    scaled64 = nb_ll64 / float(n_features)
+    shifted = scaled64 - scaled64.max()
+    nb_log_probs64 = shifted - np.log(np.exp(shifted).sum())
+    combined64 = 0.5 * net_logits64 + 0.5 * nb_log_probs64
+    assert int(np.argmax(combined64)) == y
+    # Mutant precondition: dropping the scale makes the naive-Bayes vote
+    # arbitrarily decisive and would flip the combined winner to the loser.
+    unscaled = nb_ll64 - nb_ll64.max()
+    unscaled = unscaled - np.log(np.exp(unscaled).sum())
+    assert int(np.argmax(0.5 * net_logits64 + 0.5 * unscaled)) == loser
+
+    compiled_step = jax.jit(lambda p, s, xi, yi: rule_step(genome, p, s, xi, yi))
+    _, new_state, correct, loss = compiled_step(
+        params, state, x, jnp.asarray(y, dtype=jnp.int32)
+    )
+    assert bool(jnp.isfinite(loss))
+    assert bool(jnp.all(jnp.isfinite(new_state.member_acc)))
+    assert bool(correct)
+
+
 class TestGaussFitness:
     """The search fitness migrates to the transfer-validated gauss-v1 suite."""
 
