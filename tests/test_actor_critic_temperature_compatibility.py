@@ -84,26 +84,29 @@ def test_large_reward_transition_applies_with_finite_eager_consistent_policy() -
 
 
 def test_sampling_matches_eager_policy_after_large_update() -> None:
-    """Compiled sampling on eight keys matches eager categorical sampling.
+    """Compiled sampling on eight distinct keys matches the eager policy.
 
     A NaN policy wins ``argmax(gumbel + log(probs))`` on every key, so the
     compiled agent collapses to action 0 while the eager policy samples the
-    reinforced action.
+    reinforced action.  Each actual call advances the committed state key via
+    the ``(action, new_rng_key, probabilities)`` return; the earlier revision
+    reused one immutable state, so all eight iterations repeated a single
+    stored draw and the loop could pass on one sample.  The post-update
+    policy is a near-one-hot distribution, so the eager categorical sample
+    equals the eager argmax on every non-adversarial key, and each distinct
+    actual key must reproduce it.
     """
     agent = _agent()
     state, _ = _start_on_second_action(agent)
     state = agent.update(state, _LARGE_REWARD, _OBSERVATION).state
 
     expected_probabilities = _eager_policy(state, 0.7)
-    for seed in range(8):
-        sampled_action, _, probabilities = agent.select_action(state, _OBSERVATION)
-        eager_action = jr.categorical(
-            jr.key(100 + seed),
-            jnp.log(expected_probabilities),
-            mode="high",
-        ).astype(jnp.int32)
+    eager_action = int(np.argmax(np.asarray(expected_probabilities)))
+    for _ in range(8):
+        sampled_action, key, probabilities = agent.select_action(state, _OBSERVATION)
+        state = state.replace(rng_key=key)
         np.testing.assert_array_equal(np.isfinite(np.asarray(probabilities)), True)
-        assert int(sampled_action) == int(eager_action)
+        assert int(sampled_action) == eager_action
 
 
 def test_consecutive_large_reward_transitions_keep_applying_finite_state() -> None:
