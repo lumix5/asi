@@ -68,6 +68,7 @@ from alberta_framework.core.update_safety import (
 )
 
 _INT32_MAX = 2**31 - 1
+_FLOAT32_MIN = float(np.finfo(np.float32).min)
 _ACTUAL_INT_TYPES = frozenset({int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")})
 _ACTUAL_FLOAT_TYPES = frozenset(
     {float, *(np.dtype(code).type for code in ("e", "f", "d", "g"))}
@@ -91,6 +92,16 @@ def _temperature_scaled_logits(logits: Array, temperature: float) -> Array:
     pre-scale centering finite for opposite finite extreme logits whose
     pairwise distance exceeds the float32 maximum — inputs where the plain
     ``logits / temperature`` expression stays finite and must stay finite.
+
+    For temperatures at or below one, that centering subtraction and the
+    division itself can still overflow: float32 cannot represent the pairwise
+    distance of ``[3e38, -3e38]``, so the shifted quotient reaches ``-inf``
+    and downstream ``probability * log_probability`` entropy products evaluate
+    ``0 * -inf`` as NaN.  The negative tail is therefore clamped to the finite
+    floating-point minimum, which is exact for every reported quantity:
+    ``exp(floor)`` underflows to zero exactly like ``exp(-inf)``, so softmax
+    results, derived probabilities, and the normalization sum are unchanged,
+    while log-probabilities stay finite and gradients remain finite.
     """
     if temperature > 1.0:
         # Halving both operands is exact and prevents centering opposite finite
@@ -100,7 +111,9 @@ def _temperature_scaled_logits(logits: Array, temperature: float) -> Array:
     # Both shifts preserve softmax/log-softmax while keeping division in range.
     centered = logits - jax.lax.stop_gradient(jnp.max(logits))
     scaled = centered / temperature
-    return scaled - jax.lax.stop_gradient(jnp.max(scaled))
+    shifted = scaled - jax.lax.stop_gradient(jnp.max(scaled))
+    # NaN propagates through maximum, so genuine NaN inputs still surface.
+    return jnp.maximum(shifted, _FLOAT32_MIN)
 
 
 def _require_int32(name: str, value: object, *, minimum: int, maximum: int = _INT32_MAX) -> int:

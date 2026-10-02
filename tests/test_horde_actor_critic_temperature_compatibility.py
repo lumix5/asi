@@ -19,6 +19,7 @@ import pytest
 
 from alberta_framework.core.horde import HordeLearner
 from alberta_framework.core.horde_actor_critic import (
+    _FLOAT32_MIN,
     HordeActorCriticAgent,
     HordeActorCriticConfig,
     NonlinearHordeActorCriticAgent,
@@ -27,6 +28,7 @@ from alberta_framework.core.horde_actor_critic import (
     NonlinearQHordeActorCriticConfig,
     QHordeActorCriticAgent,
     QHordeActorCriticConfig,
+    _temperature_scaled_logits,
 )
 from alberta_framework.core.types import DemonType, GVFSpec, create_horde_spec
 
@@ -96,12 +98,12 @@ def _horde_agent(temperature: float = 0.7) -> HordeActorCriticAgent:
     )
 
 
-def _nlhac_agent() -> NonlinearHordeActorCriticAgent:
+def _nlhac_agent(temperature: float = 0.7) -> NonlinearHordeActorCriticAgent:
     return NonlinearHordeActorCriticAgent(
         NonlinearHordeActorCriticConfig(
             n_actions=2,
             hidden_sizes=(),
-            temperature=0.7,
+            temperature=temperature,
             actor_epsilon=0.0,
         ),
         critic=_value_critic(),
@@ -139,6 +141,11 @@ def _nlqhac_agent() -> NonlinearQHordeActorCriticAgent:
 def _extreme_head_weights() -> jnp.ndarray:
     """Two finite logits 1e10 apart: far past the compiled NaN onset."""
     return jnp.asarray([[1e10], [0.0]], dtype=jnp.float32)
+
+
+def _opposite_extreme_head_weights() -> jnp.ndarray:
+    """Two finite logits whose pairwise distance exceeds the float32 maximum."""
+    return jnp.asarray([[3e38], [-3e38]], dtype=jnp.float32)
 
 
 def test_qhorde_large_reward_transition_applies_with_finite_policy() -> None:
@@ -257,6 +264,82 @@ def test_large_temperature_preserves_opposite_finite_logit_separation() -> None:
         np.asarray(jax.nn.softmax(jnp.asarray([3.0, -3.0], dtype=jnp.float32))),
         rtol=1e-5,
     )
+
+
+def test_opposite_extreme_logit_update_applies_at_unit_temperature() -> None:
+    """Opposite finite extremes at ``temperature=1.0`` keep the update applied.
+
+    At temperatures at or below one the centering subtraction itself can
+    overflow float32: the pairwise distance of ``[3e38, -3e38]`` exceeds the
+    float32 maximum, so the shifted quotient used to reach ``-inf`` and the
+    differentiated ``probability * log_probability`` entropy product evaluated
+    ``0 * -inf`` as NaN gradients, which the finiteness gates reject forever.
+    The clamped negative tail keeps the log-probabilities finite, so the
+    transition is accepted with finite gradients and finite committed state
+    (the bar the #2886 review set for this defect family).
+    """
+    agent = _nlhac_agent(temperature=1.0)
+    state = agent.init(1, jr.key(0))
+    state = state.replace(
+        actor_head_w=_opposite_extreme_head_weights(),
+        last_observation=_OBSERVATION,
+        # The suppressed action: its log-probability is the clamped tail, so
+        # this is the transition whose gradient used to evaluate ``0 * -inf``.
+        last_action=jnp.asarray(1, dtype=jnp.int32),
+    )
+
+    result = agent.update(state, jnp.asarray(1.0), _OBSERVATION)
+
+    assert bool(result.update_applied)
+    np.testing.assert_array_equal(
+        np.isfinite(np.asarray(result.state.actor_head_w)), True
+    )
+    probabilities = agent.policy(result.state, _OBSERVATION)
+    np.testing.assert_array_equal(np.isfinite(np.asarray(probabilities)), True)
+
+
+def test_opposite_extreme_logit_update_applies_below_unit_temperature() -> None:
+    """The same opposite-extreme transition stays applied at ``T=0.7``.
+
+    The historical expression overflows the division itself here
+    (``3e38 / 0.7`` is infinite) and returns a NaN policy; the stabilized
+    construction keeps the policy finite, and the clamp keeps the update
+    applied instead of wedging the agent on its first extreme transition.
+    """
+    agent = _nlhac_agent(temperature=0.7)
+    state = agent.init(1, jr.key(0))
+    state = state.replace(
+        actor_head_w=_opposite_extreme_head_weights(),
+        last_observation=_OBSERVATION,
+        last_action=jnp.asarray(0, dtype=jnp.int32),
+    )
+
+    result = agent.update(state, jnp.asarray(1.0), _OBSERVATION)
+
+    assert bool(result.update_applied)
+    probabilities = agent.policy(result.state, _OBSERVATION)
+    np.testing.assert_array_equal(np.isfinite(np.asarray(probabilities)), True)
+
+
+def test_clamped_tail_is_bitwise_neutral_for_representable_quotients() -> None:
+    """The clamp changes nothing wherever the shifted quotient is representable.
+
+    ``exp(float32_min)`` underflows to zero exactly like ``exp(-inf)``, so for
+    ordinary logits the softmax over the clamped construction must equal the
+    softmax over the plain twice-centered expression bitwise.
+    """
+    rng = np.random.default_rng(7)
+    for trial in range(8):
+        logits = jnp.asarray(rng.normal(0.0, 40.0, size=(6,)), dtype=jnp.float32)
+        for temperature in (0.5, 0.7, 1.0, 2.0):
+            scaled = _temperature_scaled_logits(logits, temperature)
+            clamped = jnp.maximum(
+                scaled, jnp.asarray(_FLOAT32_MIN, dtype=scaled.dtype)
+            )
+            np.testing.assert_array_equal(
+                np.asarray(jax.nn.softmax(scaled)),
+                np.asarray(jax.nn.softmax(clamped)),
+            )
 
 
 @pytest.mark.parametrize("temperature", [1.0, 0.7, 4.0])
