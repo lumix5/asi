@@ -123,6 +123,38 @@ def test_sampler_and_policy_agree_on_stabilized_extreme_logits() -> None:
     assert int(action) == int(np.argmax(np.asarray(probabilities)))
 
 
+@pytest.mark.parametrize("temperature", [1.0, 0.7, 0.5])
+def test_opposite_extreme_logits_stay_finite_at_low_temperature(temperature: float) -> None:
+    """Opposite finite extremes at ``temperature <= 1`` keep updates applying.
+
+    The pre-scale centering subtraction itself overflows float32 for the
+    pairwise distance of ``[3e38, -3e38]``: the shifted quotient reaches
+    ``-inf``, log-probabilities saturate at ``-inf``, and the entropy product
+    ``probability * log_probability`` evaluates ``0 * -inf`` as NaN gradients,
+    which the update finiteness gate turns into a permanently rejected update.
+    The construction must keep the policy, the entropy, and the gradient tree
+    finite so the gate accepts what eager arithmetic accepts, including on a
+    following transition.
+    """
+    agent = _agent(temperature=temperature)
+    state = agent.init(1, jr.key(5))
+    started, _, _ = agent.start(state, jnp.asarray([1.0]))
+    started = _with_constant_logits(started, (3e38, -3e38))
+
+    result = agent.update(started, reward=jnp.asarray(0.25), observation=jnp.asarray([1.0]))
+
+    assert bool(result.update_applied)
+    np.testing.assert_array_equal(np.isfinite(np.asarray(result.entropy)), True)
+    np.testing.assert_array_equal(np.isfinite(np.asarray(result.policy)), True)
+    np.testing.assert_allclose(np.asarray(result.policy).sum(), 1.0, rtol=1e-5)
+
+    second = agent.update(
+        result.state, reward=jnp.asarray(-0.25), observation=jnp.asarray([1.0])
+    )
+    assert bool(second.update_applied)
+    np.testing.assert_array_equal(np.isfinite(np.asarray(second.entropy)), True)
+
+
 @pytest.mark.parametrize("temperature", [1.0, 0.7, 1e38])
 def test_moderate_logits_match_the_historical_expression(temperature: float) -> None:
     """Ordinary in-range policies are unchanged up to float32 rounding."""
