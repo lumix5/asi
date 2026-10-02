@@ -60,6 +60,19 @@ def test_last_fit_json_chain_still_encodes() -> None:
 def test_origin_recursion_class_rejects_before_dumps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """The nest gate must fire before the encoder walk.
+
+    That ordering is asserted structurally: the monkeypatched ``json.dumps``
+    fails this test the moment the gate reaches the encoder, and an
+    over-deep gate walk would surface as ``RecursionError``, which
+    ``pytest.raises(ValueError)`` rejects. The wall-clock check below is not
+    a latency contract — it only guards against an accidentally runaway gate.
+    The 5 s budget keeps that guard while tolerating shared-CI-runner load:
+    the measured section costs well under 1 ms on a quiet host, and the
+    previous 0.25 s budget flaked at 0.60 s under py3.13 shard contention
+    (run 36962287499) with no related change in the diff.
+    """
+
     def fail_dumps(*_args: object, **_kwargs: object) -> str:
         raise AssertionError("json.dumps ran before the runtime-profile nest gate")
 
@@ -67,7 +80,7 @@ def test_origin_recursion_class_rejects_before_dumps(
     started = time.perf_counter()
     with pytest.raises(ValueError, match="nesting depth"):
         validate_environment_runtime_profile(_nest(16_000))
-    assert time.perf_counter() - started < 0.25
+    assert time.perf_counter() - started < 5.0
 
 
 def test_json_list_subclass_respects_node_limit() -> None:
