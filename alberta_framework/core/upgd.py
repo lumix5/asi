@@ -74,6 +74,13 @@ def _require_exact_str(name: object, value: object) -> str:
 
 
 _INT32_MAX = 2**31 - 1
+
+# Serialized-sequence cardinality ceiling, matching the merged working-memory
+# decay-list bound (#2220), the stacked-horde demon bound, and
+# ``types._MAX_HORDE_DEMONS``: a hostile or mistaken payload with millions of
+# layer sizes must be rejected before the per-element walk and the tuple copy,
+# not after them.
+_MAX_HIDDEN_SIZES = 1 << 12
 # Public last-fit in tests is 5_000 array steps / 50 stream steps. Origin handed
 # ``10**12`` to ``jnp.arange`` with no reject — hang/OOM, not an INT32 leftover.
 _UPGD_LOOP_MAX_STEPS = 10_000
@@ -659,10 +666,15 @@ class UPGDLearner:
                 is outside ``[0, 1)``.
         """
         n_heads = _require_int("n_heads", n_heads, minimum=1)
-        if isinstance(hidden_sizes, (str, bytes)):
+        if not isinstance(hidden_sizes, (tuple, list)) or type(hidden_sizes) not in (
+            tuple,
+            list,
+        ):
             raise ValueError("hidden_sizes must be a tuple of integers")
-        if not isinstance(hidden_sizes, (tuple, list)):
-            raise ValueError("hidden_sizes must be a tuple of integers")
+        if len(hidden_sizes) > _MAX_HIDDEN_SIZES:
+            raise ValueError(
+                f"hidden_sizes length must be an integer in [0, {_MAX_HIDDEN_SIZES}]"
+            )
         canonical_hidden: list[int] = []
         for idx, size in enumerate(hidden_sizes):
             canonical_hidden.append(
@@ -1545,10 +1557,15 @@ class UPGDLearner:
         raw_hidden = data.pop("hidden_sizes", None)
         if raw_hidden is None:
             raise ValueError("hidden_sizes is required")
-        if isinstance(raw_hidden, (str, bytes)):
+        if not isinstance(raw_hidden, (tuple, list)) or type(raw_hidden) not in (
+            tuple,
+            list,
+        ):
             raise ValueError("hidden_sizes must be a tuple of integers")
-        if not isinstance(raw_hidden, (tuple, list)):
-            raise ValueError("hidden_sizes must be a tuple of integers")
+        if len(raw_hidden) > _MAX_HIDDEN_SIZES:
+            raise ValueError(
+                f"hidden_sizes length must be an integer in [0, {_MAX_HIDDEN_SIZES}]"
+            )
         hidden_list: list[int] = []
         for idx, value in enumerate(raw_hidden):
             hidden_list.append(_require_int(f"hidden_sizes[{idx}]", value, minimum=1))

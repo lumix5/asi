@@ -68,6 +68,11 @@ MULTI_HEAD_LIFETIME_COUNTER_NBYTES = 12
 MULTI_HEAD_LIFETIME_COUNTER_DELTA_NBYTES = 8
 
 _INT32_MAX = 2**31 - 1
+
+# Serialized-sequence cardinality ceiling, matching the merged working-memory
+# decay-list bound (#2220) and ``types._MAX_HORDE_DEMONS``: reject a payload
+# with millions of layer sizes before copying and walking it.
+_MAX_HIDDEN_SIZES = 1 << 12
 _FLOAT32_HALF_MIN_SUBNORMAL_DENOMINATOR = 1 << 150
 _CONFIG_FIELDS = frozenset(
     {
@@ -518,6 +523,10 @@ class MultiHeadMLPLearner:
             raise ValueError(
                 f"hidden_sizes must be an actual tuple, got {type(hidden_sizes).__name__}"
             )
+        if len(hidden_sizes) > _MAX_HIDDEN_SIZES:
+            raise ValueError(
+                f"hidden_sizes length must be an integer in [0, {_MAX_HIDDEN_SIZES}]"
+            )
         hidden_sizes = tuple(
             _require_int(f"hidden_sizes[{i}]", v, minimum=1, maximum=_INT32_MAX)
             for i, v in enumerate(hidden_sizes)
@@ -712,6 +721,10 @@ class MultiHeadMLPLearner:
             raise ValueError("unsupported MultiHeadMLP state schema")
         if type(config["hidden_sizes"]) is not list:
             raise ValueError("hidden_sizes must be a list")
+        if len(config["hidden_sizes"]) > _MAX_HIDDEN_SIZES:
+            raise ValueError(
+                f"hidden_sizes length must be an integer in [0, {_MAX_HIDDEN_SIZES}]"
+            )
         if (
             config["per_head_gamma_lamda"] is not None
             and type(config["per_head_gamma_lamda"]) is not list
