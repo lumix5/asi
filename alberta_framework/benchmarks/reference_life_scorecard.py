@@ -1885,6 +1885,110 @@ def _validate_environment_manifest_descriptor(value: Any, *, path: str) -> None:
         raise ValueError(f"{path} manifest identity does not recompute")
 
 
+_MAX_REPORTED_RESOLVED_MISMATCHES = 8
+_MAX_MISMATCH_VALUE_REPR = 160
+_MAX_REPORTED_AGGREGATE_FAILURES = 10
+_MISMATCH_TRUNCATION_NOTICE = "... additional diverging fields are not shown"
+
+
+def _bounded_mismatch_repr(value: object) -> str:
+    text = repr(value)
+    if len(text) > _MAX_MISMATCH_VALUE_REPR:
+        text = text[: _MAX_MISMATCH_VALUE_REPR - 3] + "..."
+    return text
+
+
+def _note_resolved_mismatch(failures: list[str], entry: str) -> bool:
+    """Append one diverging-field entry; return True once the report saturates."""
+
+    if len(failures) < _MAX_REPORTED_RESOLVED_MISMATCHES:
+        failures.append(entry)
+        return False
+    if failures[-1] != _MISMATCH_TRUNCATION_NOTICE:
+        failures.append(_MISMATCH_TRUNCATION_NOTICE)
+    return True
+
+
+def _collect_resolved_mismatches(
+    recorded: Any,
+    canonical: Any,
+    path: str,
+    failures: list[str],
+) -> None:
+    """Name the first diverging leaves between a record and its canonical rebuild.
+
+    The traversal mirrors :func:`_json_exact_equal` — exact types, dicts by key
+    sets, lists elementwise, floats by IEEE-754 bit pattern — so every reported
+    leaf is one the exact comparison actually rejected. The 2026-09-15
+    aggregate run (34950746882) failed 26 RiverSwim records on a single
+    float64 ulp of LAPACK kernel noise in ``oracle_average_reward``; naming
+    the diverging paths and both bit patterns in the error removes the
+    download-and-structural-diff forensics that failure otherwise requires.
+    """
+
+    mismatch = (
+        f"{path} holds {_bounded_mismatch_repr(recorded)} where the canonical "
+        f"components hold {_bounded_mismatch_repr(canonical)}"
+    )
+    if type(recorded) is not type(canonical):
+        _note_resolved_mismatch(failures, mismatch)
+        return
+    if type(recorded) is dict:
+        for key in sorted(set(recorded) - set(canonical)):
+            if _note_resolved_mismatch(
+                failures, f"{path}.{key} is missing from the canonical components"
+            ):
+                return
+        for key in sorted(set(canonical) - set(recorded)):
+            if _note_resolved_mismatch(
+                failures, f"{path}.{key} is missing from the record"
+            ):
+                return
+        for key in sorted(set(recorded) & set(canonical)):
+            _collect_resolved_mismatches(
+                recorded[key], canonical[key], f"{path}.{key}", failures
+            )
+            if failures and failures[-1] == _MISMATCH_TRUNCATION_NOTICE:
+                return
+        return
+    if type(recorded) is list:
+        if len(recorded) != len(canonical):
+            _note_resolved_mismatch(
+                failures,
+                f"{path} holds {len(recorded)} entries where the canonical "
+                f"components hold {len(canonical)}",
+            )
+            return
+        for index, (recorded_entry, canonical_entry) in enumerate(
+            zip(recorded, canonical)
+        ):
+            _collect_resolved_mismatches(
+                recorded_entry, canonical_entry, f"{path}[{index}]", failures
+            )
+            if failures and failures[-1] == _MISMATCH_TRUNCATION_NOTICE:
+                return
+        return
+    if type(recorded) is float:
+        # ``0.0 == -0.0`` and near-ulp neighbours compare equal with ``!=``;
+        # the exact comparison is the bit pattern, so report on that.
+        if struct.pack(">d", recorded) != struct.pack(">d", canonical):
+            _note_resolved_mismatch(failures, mismatch)
+        return
+    if recorded != canonical:
+        _note_resolved_mismatch(failures, mismatch)
+
+
+def _resolved_mismatch_report(
+    recorded: Mapping[str, Any],
+    canonical: Mapping[str, Any],
+    *,
+    path: str,
+) -> list[str]:
+    failures: list[str] = []
+    _collect_resolved_mismatches(dict(recorded), dict(canonical), path, failures)
+    return failures
+
+
 def _validate_resolved_components(
     resolved: Mapping[str, Any],
     *,
@@ -1938,9 +2042,13 @@ def _validate_resolved_components(
     canonical_runner = build_scorecard_runner(plan, spec)
     canonical_resolved = _resolved_components(plan, spec, canonical_runner)
     if not _json_exact_equal(dict(resolved), canonical_resolved):
+        mismatch_report = _resolved_mismatch_report(
+            resolved, canonical_resolved, path=path
+        )
         raise ValueError(
             f"{path} does not match the canonical resolved components for the "
-            "scheduled arm and exact environment definition"
+            "scheduled arm and exact environment definition; diverging fields: "
+            + "; ".join(mismatch_report)
         )
 
 
@@ -3448,6 +3556,7 @@ def summarize_shard_files(
     if len(paths) != expected_count:
         raise ValueError(f"aggregate requires exactly {expected_count} shard paths")
     records: list[dict[str, Any]] = []
+    validation_failures: list[tuple[str, str]] = []
     seen_files: set[tuple[int, int]] = set()
     total_bytes = 0
     consistency_identities = _current_consistency_identities()
@@ -3462,12 +3571,37 @@ def summarize_shard_files(
             raise ValueError("aggregate shard paths must name unique regular files")
         seen_files.add(identity)
         total_bytes += metadata.st_size
-        validate_scorecard_run_record(
-            payload,
-            plan=effective_plan,
-            _consistency_identities=consistency_identities,
-        )
+        try:
+            validate_scorecard_run_record(
+                payload,
+                plan=effective_plan,
+                _consistency_identities=consistency_identities,
+            )
+        except ValueError as error:
+            # Collect instead of stopping at the first bad record: one run of
+            # the 144-shard campaign must yield the complete failure list, the
+            # way run 34950746882 hidden 26 of its 144 mismatches behind its
+            # first raise. Rejection semantics are unchanged.
+            validation_failures.append((str(path), str(error)))
+            continue
         records.append(payload)
+    if validation_failures:
+        shown = "; ".join(
+            f"{location}: {message}"
+            for location, message in validation_failures[
+                :_MAX_REPORTED_AGGREGATE_FAILURES
+            ]
+        )
+        hidden = len(validation_failures) - _MAX_REPORTED_AGGREGATE_FAILURES
+        raise ValueError(
+            f"{len(validation_failures)} of {len(paths)} shard records failed "
+            f"validation: {shown}"
+            + (
+                f"; {hidden} additional failed records are not shown"
+                if hidden > 0
+                else ""
+            )
+        )
     artifact = build_scorecard_artifact(effective_plan, records)
     validate_scorecard_artifact(artifact)
     return artifact

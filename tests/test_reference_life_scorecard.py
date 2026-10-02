@@ -982,6 +982,138 @@ def test_aggregate_rejects_hard_links_using_opened_file_identity(
         scorecard.summarize_shard_files(paths)
 
 
+def _aggregate_shard_paths(tmp_path: Path, count: int) -> list[Path]:
+    paths = []
+    for index in range(count):
+        path = tmp_path / f"shard-{index:03d}.json"
+        path.write_text(json.dumps({"schedule_index": index}), encoding="utf-8")
+        paths.append(path)
+    return paths
+
+
+@pytest.mark.parametrize("marked_index", [5, {3, 7}])
+def test_aggregate_reports_every_failed_record_in_one_error(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    marked_index: int | set[int],
+) -> None:
+    """The aggregate names every failed record instead of stopping at the first.
+
+    The 2026-09-15 aggregate run (34950746882) died on the first of 26
+    mismatching RiverSwim records, so the surviving failures had to be found
+    by re-downloading all 144 public artifacts and diffing them by hand.
+    Reporting every failure at once turns that forensic pass into one log
+    scan. Rejection semantics are unchanged: the aggregate still refuses to
+    build.
+    """
+    marked = {marked_index} if type(marked_index) is int else marked_index
+    paths = _aggregate_shard_paths(tmp_path, 144)
+
+    def selective_validator(payload: Any, **kwargs: Any) -> dict[str, Any]:
+        del kwargs
+        if payload["schedule_index"] in marked:
+            raise ValueError("simulated $.resolved drift")
+        return {"valid": True}
+
+    monkeypatch.setattr(scorecard, "validate_scorecard_run_record", selective_validator)
+
+    with pytest.raises(ValueError) as raised:
+        scorecard.summarize_shard_files(paths)
+    message = str(raised.value)
+    assert f"{len(marked)} of 144 shard records failed validation" in message
+    for index in sorted(marked):
+        assert f"shard-{index:03d}.json" in message
+    assert message.count("simulated $.resolved drift") == len(marked)
+
+
+def test_resolved_mismatch_error_names_the_diverging_fields(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A canonical resolved-components mismatch names its diverging fields.
+
+    The production failure behind this diagnostic was one float64 ulp of
+    LAPACK kernel noise in ``oracle_average_reward``, visible only after the
+    recorded and canonical manifests were structurally diffed by hand. The
+    error must carry that diff itself: the exact JSON path plus both bit
+    patterns, and the digest identities the ulp flipped.
+    """
+    plan = build_development_plan()
+    spec = next(
+        candidate
+        for candidate in scorecard.iter_run_specs(plan)
+        if candidate.environment_kind == "riverswim" and candidate.arm == "prototype"
+    )
+    runner = scorecard.build_scorecard_runner(plan, spec)
+    record = _completed_record(plan, spec, runner=runner)
+    descriptor = runner.environment_adapter.manifest.descriptor()
+    config = descriptor["config"]
+    recorded_gain = config["oracle_average_reward"]
+    drifted_gain = math.nextafter(recorded_gain, math.inf)
+    assert drifted_gain != recorded_gain
+    drifted_manifest = scorecard.ReferenceEnvironmentManifest.from_config(
+        implementation_id=descriptor["implementation_id"],
+        state_schema=descriptor["state_schema"],
+        config={**config, "oracle_average_reward": drifted_gain},
+        observation_spec=scorecard._space_from_descriptor(
+            descriptor["observation_spec"], path="drift.observation_spec"
+        ),
+        action_spec=scorecard._space_from_descriptor(
+            descriptor["action_spec"], path="drift.action_spec"
+        ),
+        max_executions=descriptor["max_executions"],
+    )
+
+    class _DriftedEnvironmentAdapter:
+        manifest = drifted_manifest
+
+    class _DriftedRunner:
+        agent_adapter = runner.agent_adapter
+        environment_adapter = _DriftedEnvironmentAdapter()
+        config = runner.config
+
+    monkeypatch.setattr(
+        scorecard, "build_scorecard_runner", lambda *args, **kwargs: _DriftedRunner()
+    )
+
+    with pytest.raises(ValueError) as raised:
+        scorecard.validate_scorecard_run_record(record, plan=plan)
+    message = str(raised.value)
+    assert "does not match the canonical resolved components" in message
+    assert "$.resolved.environment_manifest.config.oracle_average_reward" in message
+    assert repr(recorded_gain) in message
+    assert repr(drifted_gain) in message
+    assert "$.resolved.environment_manifest.config_sha256" in message
+    assert "$.resolved.environment_manifest.manifest_id" in message
+    assert scorecard._json_exact_equal(
+        record["resolved"]["life_config"],
+        scorecard._resolved_components(plan, spec, runner)["life_config"],
+    )
+
+
+def test_resolved_mismatch_report_is_bounded() -> None:
+    recorded = {f"field_{index}": index for index in range(10)}
+    canonical = {f"field_{index}": index + 1 for index in range(10)}
+    report = scorecard._resolved_mismatch_report(
+        recorded, canonical, path="$.resolved"
+    )
+    assert len(report) == scorecard._MAX_REPORTED_RESOLVED_MISMATCHES + 1
+    assert report[-1] == scorecard._MISMATCH_TRUNCATION_NOTICE
+    assert sum("field_" in entry for entry in report) == (
+        scorecard._MAX_REPORTED_RESOLVED_MISMATCHES
+    )
+    exact = scorecard._resolved_mismatch_report(
+        {"a": 1.0}, {"a": 1.0}, path="$.resolved"
+    )
+    assert exact == []
+    # The float branch compares bit patterns, mirroring _json_exact_equal:
+    # a plain ``!=`` mutant silently accepts 0.0 versus -0.0.
+    negative_zero = scorecard._resolved_mismatch_report(
+        {"a": 0.0}, {"a": -0.0}, path="$.resolved"
+    )
+    assert len(negative_zero) == 1
+    assert "$.resolved.a" in negative_zero[0]
+
+
 @pytest.fixture(scope="module")
 def completed_artifact() -> dict[str, Any]:
     plan = build_development_plan()
