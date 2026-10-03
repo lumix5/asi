@@ -1,0 +1,108 @@
+skip existing switching_two_state prototype 70000
+skip existing switching_two_state prototype 70001
+skip existing switching_two_state prototype 70002
+skip existing switching_two_state prototype 70003
+skip existing switching_two_state prototype 70004
+skip existing switching_two_state prototype 70005
+skip existing switching_two_state prototype 70006
+skip existing switching_two_state prototype 70007
+skip existing switching_two_state prototype 70008
+skip existing switching_two_state prototype 70009
+skip existing switching_two_state prototype 70010
+skip existing switching_two_state prototype 70011
+skip existing switching_two_state prototype_frozen 70000
+skip existing switching_two_state prototype_frozen 70001
+skip existing switching_two_state prototype_frozen 70002
+skip existing switching_two_state prototype_frozen 70003
+skip existing switching_two_state prototype_frozen 70004
+skip existing switching_two_state prototype_frozen 70005
+skip existing switching_two_state prototype_frozen 70006
+skip existing switching_two_state prototype_frozen 70007
+skip existing switching_two_state prototype_frozen 70008
+skip existing switching_two_state prototype_frozen 70009
+skip existing switching_two_state prototype_frozen 70010
+skip existing switching_two_state prototype_frozen 70011
+skip existing switching_two_state random 70000
+skip existing switching_two_state random 70001
+skip existing switching_two_state random 70002
+skip existing switching_two_state random 70003
+skip existing switching_two_state random 70004
+skip existing switching_two_state random 70005
+skip existing switching_two_state random 70006
+skip existing switching_two_state random 70007
+skip existing switching_two_state random 70008
+skip existing switching_two_state random 70009
+skip existing switching_two_state random 70010
+skip existing switching_two_state random 70011
+skip existing switching_two_state privileged_oracle 70000
+skip existing switching_two_state privileged_oracle 70001
+skip existing switching_two_state privileged_oracle 70002
+skip existing switching_two_state privileged_oracle 70003
+skip existing switching_two_state privileged_oracle 70004
+skip existing switching_two_state privileged_oracle 70005
+skip existing switching_two_state privileged_oracle 70006
+skip existing switching_two_state privileged_oracle 70007
+skip existing switching_two_state privileged_oracle 70008
+skip existing switching_two_state privileged_oracle 70009
+skip existing switching_two_state privileged_oracle 70010
+skip existing switching_two_state privileged_oracle 70011
+skip existing switching_two_state differential_sarsa 70000
+skip existing switching_two_state differential_sarsa 70001
+skip existing switching_two_state differential_sarsa 70002
+skip existing switching_two_state differential_sarsa 70003
+skip existing switching_two_state differential_sarsa 70004
+skip existing switching_two_state differential_sarsa 70005
+skip existing switching_two_state differential_sarsa 70006
+skip existing switching_two_state differential_sarsa 70007
+skip existing switching_two_state differential_sarsa 70008
+skip existing switching_two_state differential_sarsa 70009
+skip existing switching_two_state differential_sarsa 70010
+skip existing switching_two_state differential_sarsa 70011
+skip existing switching_two_state sarsa 70000
+skip existing switching_two_state sarsa 70001
+skip existing switching_two_state sarsa 70002
+skip existing switching_two_state sarsa 70003
+skip existing switching_two_state sarsa 70004
+skip existing switching_two_state sarsa 70005
+skip existing switching_two_state sarsa 70006
+skip existing switching_two_state sarsa 70007
+skip existing switching_two_state sarsa 70008
+skip existing switching_two_state sarsa 70009
+skip existing switching_two_state sarsa 70010
+skip existing switching_two_state sarsa 70011
+E1004 04:24:50.851508 3296495 slow_operation_alarm.cc:73] 
+********************************
+[Compiling module jit_start for CPU] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+E1004 04:24:53.964022 3296339 slow_operation_alarm.cc:140] The operation took 2m3.124928497s
+
+********************************
+[Compiling module jit_start for CPU] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+E1004 04:25:12.870958 3296763 slow_operation_alarm.cc:73] 
+********************************
+[Compiling module jit_start for CPU] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+E1004 04:25:25.621153 3297131 slow_operation_alarm.cc:73] 
+********************************
+[Compiling module jit_start for CPU] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+E1004 04:26:06.755292 3297130 slow_operation_alarm.cc:73] 
+********************************
+[Compiling module jit_start for CPU] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+E1004 04:26:42.215503 3296609 slow_operation_alarm.cc:140] The operation took 3m29.375254899s
+
+********************************
+[Compiling module jit_start for CPU] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+E1004 04:34:54.000545 3297014 slow_operation_alarm.cc:140] The operation took 10m47.289954417s
+
+********************************
+[Compiling module jit_start for CPU] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************
+E1004 04:34:54.000546 3297058 slow_operation_alarm.cc:140] The operation took 11m28.393520396s
+
+********************************
+[Compiling module jit_start for CPU] Very slow compile? If you want to file a bug, run with envvar XLA_FLAGS=--xla_dump_to=/tmp/foo and attach the results.
+********************************

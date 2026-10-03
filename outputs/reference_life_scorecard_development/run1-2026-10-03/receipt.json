@@ -1,0 +1,798 @@
+{
+  "disclaimers": [
+    "single host and single runtime: no cross-machine source-identity or oracle-variant variance is exercised or attested",
+    "not dispatched through .github/workflows/reference-life-scorecard-dev.yml; the workflow_blob_sha1 records which shard contract this run mirrored",
+    "consistency hashes bind bytes; they are not authenticated execution proof",
+    "permanently nonpromoting: no reference-dev selection, performance result, or scientific evidence"
+  ],
+  "policy": "development_only_permanently_nonpromoting",
+  "result": {
+    "artifact_sha256": "2b1346cf41be634be1a8803393254e9f882cf92686f8f34aa8ec5c5312412413",
+    "file_count": 146,
+    "inventory": [
+      {
+        "bytes": 9492,
+        "path": "plan.json",
+        "sha256": "3e517054b5802cbd759e6d9d8e6d890b893a991111aec60a845772bb947820f2"
+      },
+      {
+        "bytes": 8777651,
+        "path": "artifact.json",
+        "sha256": "2b1346cf41be634be1a8803393254e9f882cf92686f8f34aa8ec5c5312412413"
+      },
+      {
+        "bytes": 54355,
+        "path": "shards/riverswim__differential_sarsa__70000.json",
+        "sha256": "8122bbb150fcb7e19ee3f5725a9384be7e881c627d13ddba302c4350f99b674f"
+      },
+      {
+        "bytes": 54358,
+        "path": "shards/riverswim__differential_sarsa__70001.json",
+        "sha256": "f6d7178013c1857e6de77becbaec1ec8a536464de086f8487bdbf731b1f8e6d5"
+      },
+      {
+        "bytes": 54359,
+        "path": "shards/riverswim__differential_sarsa__70002.json",
+        "sha256": "7f54458497f36813242dcd6f032bb2e57ae19e08e9e9cc2c2427a5a9c81fc116"
+      },
+      {
+        "bytes": 54357,
+        "path": "shards/riverswim__differential_sarsa__70003.json",
+        "sha256": "13cfe9d3149540620f8400e38fff9426fbcf660f972a08e6cd9010d6163ab222"
+      },
+      {
+        "bytes": 54360,
+        "path": "shards/riverswim__differential_sarsa__70004.json",
+        "sha256": "ab14946b4055d9ef83878df203a8cc62e794391d6ad8ce6398b64b67283c98aa"
+      },
+      {
+        "bytes": 54358,
+        "path": "shards/riverswim__differential_sarsa__70005.json",
+        "sha256": "9950341c35e3406b0898397dfac294fae19449d5415e7e1bb3e55bed38942fd0"
+      },
+      {
+        "bytes": 54361,
+        "path": "shards/riverswim__differential_sarsa__70006.json",
+        "sha256": "fe85c64ac21556da2e00f3af98366ff576c902d5caa566e64b31b88d894f7870"
+      },
+      {
+        "bytes": 54356,
+        "path": "shards/riverswim__differential_sarsa__70007.json",
+        "sha256": "146db236da1eb9a318b068ce67c4a3992f677695e4be94b9295e038da1397be9"
+      },
+      {
+        "bytes": 54358,
+        "path": "shards/riverswim__differential_sarsa__70008.json",
+        "sha256": "c8d3c6a7628fac05a210893fbb36e4a8d30fbd67eed048e36294ee4f8feb90c3"
+      },
+      {
+        "bytes": 54357,
+        "path": "shards/riverswim__differential_sarsa__70009.json",
+        "sha256": "7a100a51102d4ca87ee859f090ecdcc54f10d7ba1aa2809effbccb4a352d2803"
+      },
+      {
+        "bytes": 54360,
+        "path": "shards/riverswim__differential_sarsa__70010.json",
+        "sha256": "75e370022fee24a719534f3f6a887470a0902b0021cc30c935eaa5a19a1fee69"
+      },
+      {
+        "bytes": 54356,
+        "path": "shards/riverswim__differential_sarsa__70011.json",
+        "sha256": "7e725646ea3c187da0205d5903078e282a954e144c5660ff6e0bb66b25cd2f21"
+      },
+      {
+        "bytes": 55434,
+        "path": "shards/riverswim__privileged_oracle__70000.json",
+        "sha256": "3bbf62a06207925be6d2fe287ee344c82a901cbad876f5af8d95bb38e5e0c19c"
+      },
+      {
+        "bytes": 55435,
+        "path": "shards/riverswim__privileged_oracle__70001.json",
+        "sha256": "2ca9fb10aac939889fdb80d71452ec194ba6f83a32a1ba4181741d655fb757bc"
+      },
+      {
+        "bytes": 55437,
+        "path": "shards/riverswim__privileged_oracle__70002.json",
+        "sha256": "45db5e770cc7fa554bebd07bf89ec1defa4ae8e88df50b5bb30e04f8a0872345"
+      },
+      {
+        "bytes": 55436,
+        "path": "shards/riverswim__privileged_oracle__70003.json",
+        "sha256": "6f86a53082f92b32abf785092d0b2ce101d68b31017a6c863eeb54662244c3ef"
+      },
+      {
+        "bytes": 55434,
+        "path": "shards/riverswim__privileged_oracle__70004.json",
+        "sha256": "104c71fb1c9f8b243d1166ebc6ff815e2eb5889db096c67e8f5f4e3c2c7f5f77"
+      },
+      {
+        "bytes": 55434,
+        "path": "shards/riverswim__privileged_oracle__70005.json",
+        "sha256": "f76c5d8b62145c3741ae24aec617a6a68332db365d1bb7eb9fdc0d16ff8a3c48"
+      },
+      {
+        "bytes": 55439,
+        "path": "shards/riverswim__privileged_oracle__70006.json",
+        "sha256": "57761dae797859b4ada341e0f7434f44e273a40d614b1649a8fdeef2e9a9dea5"
+      },
+      {
+        "bytes": 55434,
+        "path": "shards/riverswim__privileged_oracle__70007.json",
+        "sha256": "be006972f73ffcc6f1b37f283f1f77abb41b922ca8c0bd29a8a9282140003fb1"
+      },
+      {
+        "bytes": 55436,
+        "path": "shards/riverswim__privileged_oracle__70008.json",
+        "sha256": "f20ab535aa4cb62391f3c344677090afe0361611e1397a0a9a740979235d0066"
+      },
+      {
+        "bytes": 55435,
+        "path": "shards/riverswim__privileged_oracle__70009.json",
+        "sha256": "fa19a66cafc2711de76e23c42d018ca967e76c40a0a515f76e72bd266f27e41e"
+      },
+      {
+        "bytes": 55432,
+        "path": "shards/riverswim__privileged_oracle__70010.json",
+        "sha256": "432b95ade20ba3a70718c2802cd9bafbf576af694870e369f021300578e2b011"
+      },
+      {
+        "bytes": 55432,
+        "path": "shards/riverswim__privileged_oracle__70011.json",
+        "sha256": "51275b7454af4afdbb61a60b2ff3793e2cba5a1b5eb29658efccac8d3b738f6f"
+      },
+      {
+        "bytes": 55218,
+        "path": "shards/riverswim__prototype__70000.json",
+        "sha256": "36129a83dc7921e3d98d827dbb5799883b58d53f3b60621c116782996a900e5f"
+      },
+      {
+        "bytes": 55220,
+        "path": "shards/riverswim__prototype__70001.json",
+        "sha256": "2baef5053c6ecb45de333b98c035e3a7e97651c15f00fdc2a39a8d539ef4ce84"
+      },
+      {
+        "bytes": 55222,
+        "path": "shards/riverswim__prototype__70002.json",
+        "sha256": "bbffeac5c53da3e7e342408979aadb8eb4d48217b47fabdd81108006a75178b8"
+      },
+      {
+        "bytes": 55219,
+        "path": "shards/riverswim__prototype__70003.json",
+        "sha256": "5c43d47124b5fb4022350e16a56b902b5e8035d93e36012fc1dca8165b1a869d"
+      },
+      {
+        "bytes": 55197,
+        "path": "shards/riverswim__prototype__70004.json",
+        "sha256": "0a975107561a8f6143d63e57a2e8146f53bcfb6322ae9235d56492bfcabd206e"
+      },
+      {
+        "bytes": 55199,
+        "path": "shards/riverswim__prototype__70005.json",
+        "sha256": "6acbb5ba7cfb0945eb3d637ba734a08eb26c55176153f1e983871fbd5b448ce4"
+      },
+      {
+        "bytes": 55198,
+        "path": "shards/riverswim__prototype__70006.json",
+        "sha256": "e50fd2a568732a6c21fd04913a858590933b3adecff762c23d05ebdfcbc3225e"
+      },
+      {
+        "bytes": 55219,
+        "path": "shards/riverswim__prototype__70007.json",
+        "sha256": "7085513c3d1cfa03b49a1bf7bd4c6f3226ce8e46c8063707b08a1db84d85ec2d"
+      },
+      {
+        "bytes": 55218,
+        "path": "shards/riverswim__prototype__70008.json",
+        "sha256": "dca822ea9708f3c1918e6891feab117530f955ff056db0d517bcf807ffd7fb07"
+      },
+      {
+        "bytes": 55215,
+        "path": "shards/riverswim__prototype__70009.json",
+        "sha256": "62031e143a86e4e4fb1258311bc58ab890cda71d035cab68d0be5241dc42ae75"
+      },
+      {
+        "bytes": 55203,
+        "path": "shards/riverswim__prototype__70010.json",
+        "sha256": "74cb32e161e0793215489bcfb33a20b2bcba9e23c5d9c83c70861ae9624de633"
+      },
+      {
+        "bytes": 55221,
+        "path": "shards/riverswim__prototype__70011.json",
+        "sha256": "66f9a92ef70c7339b41986013ab11a7fd40b34430aa576aed499dcac71d08c44"
+      },
+      {
+        "bytes": 55228,
+        "path": "shards/riverswim__prototype_frozen__70000.json",
+        "sha256": "3f8784f2f5267162c73fc82fcfaa322f924194e2aaf1d0401826d965b61978dd"
+      },
+      {
+        "bytes": 55220,
+        "path": "shards/riverswim__prototype_frozen__70001.json",
+        "sha256": "deb94327da46e3e4dd8d49af94aa213b60baacce99127f228aee7987bbc09e1a"
+      },
+      {
+        "bytes": 55232,
+        "path": "shards/riverswim__prototype_frozen__70002.json",
+        "sha256": "800cccf4da5975cf276490361f6dee6e5f1b786b9a4cd43a4cad6966b4e99e6c"
+      },
+      {
+        "bytes": 55202,
+        "path": "shards/riverswim__prototype_frozen__70003.json",
+        "sha256": "e8119ee87bc3ed8699dbea3ee2239e260836462d3df060ec401b0eb2960d6592"
+      },
+      {
+        "bytes": 55231,
+        "path": "shards/riverswim__prototype_frozen__70004.json",
+        "sha256": "3bfa19d34167abec70ea91e0bc74ab16d06da9bdf55103fccb388685c26bc6ac"
+      },
+      {
+        "bytes": 55226,
+        "path": "shards/riverswim__prototype_frozen__70005.json",
+        "sha256": "59935eddbf39c50019d1aed4d73aa322e635e352d66b2b6e2c8a8110208d73ad"
+      },
+      {
+        "bytes": 55198,
+        "path": "shards/riverswim__prototype_frozen__70006.json",
+        "sha256": "b157fbd619e48abab2f2a36d4167c0256bba50cfaad12aec68ed8d112c7e9884"
+      },
+      {
+        "bytes": 55225,
+        "path": "shards/riverswim__prototype_frozen__70007.json",
+        "sha256": "19ad7239563d3a1345abc649067a93dc7de9217404bc80275f53fa7cf68210c2"
+      },
+      {
+        "bytes": 55222,
+        "path": "shards/riverswim__prototype_frozen__70008.json",
+        "sha256": "c1388a1793ae87e1767bd35c2b2e5ffad9d4f2cd632681e1f3bfbc6521f4afec"
+      },
+      {
+        "bytes": 55222,
+        "path": "shards/riverswim__prototype_frozen__70009.json",
+        "sha256": "2ef7e3db22fe324b4804b15aa4502671966864e226cb54cf35d6a6d628290437"
+      },
+      {
+        "bytes": 55229,
+        "path": "shards/riverswim__prototype_frozen__70010.json",
+        "sha256": "d9e4da5bfc23dd04462439b55d56aa58984aa2192804c3a8b9a3f58bff9c2521"
+      },
+      {
+        "bytes": 55229,
+        "path": "shards/riverswim__prototype_frozen__70011.json",
+        "sha256": "160abe0312fd61f9efbfbb8f68a1981ce95f2283eb073b1bc75cb0e1017034d7"
+      },
+      {
+        "bytes": 53575,
+        "path": "shards/riverswim__random__70000.json",
+        "sha256": "349bf1dbb8798fa721424a93572734b6e7c95fcc25353f3f15d9c1ee2b59b4e5"
+      },
+      {
+        "bytes": 53574,
+        "path": "shards/riverswim__random__70001.json",
+        "sha256": "273373a5d22753fa7425fb3a98f5beac0f9da58609770f6c76195e9c008daecc"
+      },
+      {
+        "bytes": 53579,
+        "path": "shards/riverswim__random__70002.json",
+        "sha256": "7eb02636a9bb9fbcf382f1cc7b1079317b0fb5632eb27b8f20a88c1cc2241438"
+      },
+      {
+        "bytes": 53577,
+        "path": "shards/riverswim__random__70003.json",
+        "sha256": "5f9b3677292ece48f37f52e26d47b50d5a03c72e61361751032c32b35c041f7d"
+      },
+      {
+        "bytes": 53580,
+        "path": "shards/riverswim__random__70004.json",
+        "sha256": "321192663d2dd9af377973f0b49dc506b5119e623bafdb29ac87ed0b103fde77"
+      },
+      {
+        "bytes": 53575,
+        "path": "shards/riverswim__random__70005.json",
+        "sha256": "ad03a5d94c5c320b5a4ef9d8672ec88563d61aa1f08511fe3a7b72712a07491e"
+      },
+      {
+        "bytes": 53578,
+        "path": "shards/riverswim__random__70006.json",
+        "sha256": "8c50c8a8eda6d558eea4c785284b4a39eac466096bdba40b4d63fa3c2ec383e6"
+      },
+      {
+        "bytes": 53572,
+        "path": "shards/riverswim__random__70007.json",
+        "sha256": "b1efad0c068c8a3195945d224caaa8af73bb431ceb48250945d02236cc691608"
+      },
+      {
+        "bytes": 53571,
+        "path": "shards/riverswim__random__70008.json",
+        "sha256": "2e2cbd0e230c8eaa913883268db15d113238bd6dd5209d149707d6638d3174dd"
+      },
+      {
+        "bytes": 53579,
+        "path": "shards/riverswim__random__70009.json",
+        "sha256": "51ccdf260a59ce8acf96fbd1abf28a9fee7db24451c69fa8cc5c2eab5f0d6ca4"
+      },
+      {
+        "bytes": 53576,
+        "path": "shards/riverswim__random__70010.json",
+        "sha256": "826f651385b2cb8608e158422886b28629dc0d3990488194b7be12dbcf811f4b"
+      },
+      {
+        "bytes": 53578,
+        "path": "shards/riverswim__random__70011.json",
+        "sha256": "88de18af14a52c2dbdce76de34ef6d0ef4c0d667f57bbed35055c16b30a64a5d"
+      },
+      {
+        "bytes": 54510,
+        "path": "shards/riverswim__sarsa__70000.json",
+        "sha256": "7080ac18749079a75136f5390671145adc84c681f6cac3dc35b46e1200125fae"
+      },
+      {
+        "bytes": 54515,
+        "path": "shards/riverswim__sarsa__70001.json",
+        "sha256": "5d7feb577010c5b09a3dcbc62d27ae2f9a80a4d9a59830d5c21ef7c09e5f3fc2"
+      },
+      {
+        "bytes": 54524,
+        "path": "shards/riverswim__sarsa__70002.json",
+        "sha256": "ed8e17dafca9a543df0927f0f6bcc5d795c8ddd199e2b1c29af84a011f6bfa30"
+      },
+      {
+        "bytes": 54527,
+        "path": "shards/riverswim__sarsa__70003.json",
+        "sha256": "299513b550fa0dcb3fc0bfdd9936494fa63aedd19becfaf7d2f9e07bf4ec9134"
+      },
+      {
+        "bytes": 54532,
+        "path": "shards/riverswim__sarsa__70004.json",
+        "sha256": "23cfab2b4f08ebbe3d994e4bf4f2d19650999b532175e0d0b701969cbfb42709"
+      },
+      {
+        "bytes": 54526,
+        "path": "shards/riverswim__sarsa__70005.json",
+        "sha256": "d48384aeda0c85613e6e5e3a29d2508d13deaaba872058501405fb0af3dd2728"
+      },
+      {
+        "bytes": 54532,
+        "path": "shards/riverswim__sarsa__70006.json",
+        "sha256": "91d1daf54a6e5ac86ac67a007e0cf95a971ffcbd26edc49db8f37754d01872d4"
+      },
+      {
+        "bytes": 54526,
+        "path": "shards/riverswim__sarsa__70007.json",
+        "sha256": "721a6ca31e50a9b1b745a67d06edbd9fabdef8060154231ff4537ee8dac9a361"
+      },
+      {
+        "bytes": 54529,
+        "path": "shards/riverswim__sarsa__70008.json",
+        "sha256": "1b4140fa5246c828c18982c27b5da070d49c9c737a645dcc4f205d3d55cc50e6"
+      },
+      {
+        "bytes": 54532,
+        "path": "shards/riverswim__sarsa__70009.json",
+        "sha256": "314f46a40582bb00b4423c97fce3d0355c9740d2c70c02995e0f0c8f50f9bdf1"
+      },
+      {
+        "bytes": 54533,
+        "path": "shards/riverswim__sarsa__70010.json",
+        "sha256": "3a15377bb8abead8b3bd67250e491039756bec8c1255e8bcef364647811aa538"
+      },
+      {
+        "bytes": 54527,
+        "path": "shards/riverswim__sarsa__70011.json",
+        "sha256": "922f36f7f8585608f0919751bfb9a98d1209b9dbefa76901832c55b3f3302a3e"
+      },
+      {
+        "bytes": 54224,
+        "path": "shards/switching_two_state__differential_sarsa__70000.json",
+        "sha256": "585c40333006278f7998444c3e27bb60fb47cee33e8db6b4b58a0713f2e9a403"
+      },
+      {
+        "bytes": 54228,
+        "path": "shards/switching_two_state__differential_sarsa__70001.json",
+        "sha256": "d0bc2ffa87a3f8d162d5c27a0aff8342a9a8f8a86447508f19b8371d806daa54"
+      },
+      {
+        "bytes": 54226,
+        "path": "shards/switching_two_state__differential_sarsa__70002.json",
+        "sha256": "8262de373a581f69df8b35b670f09e5ec8097807084e2227a61f8498ce958c5f"
+      },
+      {
+        "bytes": 54222,
+        "path": "shards/switching_two_state__differential_sarsa__70003.json",
+        "sha256": "3ffd5d1ffb44cfbd61ae56e998ce5377e51791b5ff5f50d4644007e1afd02dc9"
+      },
+      {
+        "bytes": 54223,
+        "path": "shards/switching_two_state__differential_sarsa__70004.json",
+        "sha256": "04bd21c7535b0bd8e9d9ca069f7d51f55c61930ee619b4c314e45bda5105a134"
+      },
+      {
+        "bytes": 54226,
+        "path": "shards/switching_two_state__differential_sarsa__70005.json",
+        "sha256": "e21a4c59ee990e1e48c865fde87868b43b7b7b38b0d01c156f8fc02baf02ce36"
+      },
+      {
+        "bytes": 54224,
+        "path": "shards/switching_two_state__differential_sarsa__70006.json",
+        "sha256": "9528993f9005747edc6b3b89bf7748982bcb8c862ca44c794f59eba9d5294fcd"
+      },
+      {
+        "bytes": 54227,
+        "path": "shards/switching_two_state__differential_sarsa__70007.json",
+        "sha256": "3ca8cedec99ab79b3ca2b72ea2af89cf6014da3e60a5096c417dde13e2aa7e54"
+      },
+      {
+        "bytes": 54220,
+        "path": "shards/switching_two_state__differential_sarsa__70008.json",
+        "sha256": "738f2a32de18d49afb810c3139d6773295dcd04a9e17cf6726ec1b669747b24f"
+      },
+      {
+        "bytes": 54226,
+        "path": "shards/switching_two_state__differential_sarsa__70009.json",
+        "sha256": "20c000f3e08e31f1e176a333700b75580e0e1222476457d595ee8b7c128fad00"
+      },
+      {
+        "bytes": 54228,
+        "path": "shards/switching_two_state__differential_sarsa__70010.json",
+        "sha256": "a363908f596cef0da4bcc11408bbfb65dfe6e2d41ea7dffc4eea3a7d4fac046a"
+      },
+      {
+        "bytes": 54226,
+        "path": "shards/switching_two_state__differential_sarsa__70011.json",
+        "sha256": "7c6066e89064eae2bef7c7f68fcbce9187d4528ff85b1e003117081e60967128"
+      },
+      {
+        "bytes": 55740,
+        "path": "shards/switching_two_state__privileged_oracle__70000.json",
+        "sha256": "b7cec908646ac6a844012a65d3bd83d4d6896d1a571cf67dc6a9b03edf500eaa"
+      },
+      {
+        "bytes": 55740,
+        "path": "shards/switching_two_state__privileged_oracle__70001.json",
+        "sha256": "af2ea5e64f39059d688efacb52e73d3580b2e1f6839a8561b2e69c7046bc7f18"
+      },
+      {
+        "bytes": 55741,
+        "path": "shards/switching_two_state__privileged_oracle__70002.json",
+        "sha256": "9323108aef69bc7781bf8f83a590f826feed931d16ce6da1c3dd95ac706d3cd2"
+      },
+      {
+        "bytes": 55742,
+        "path": "shards/switching_two_state__privileged_oracle__70003.json",
+        "sha256": "c9fd056c32c832e9d19972621867153ad6ff5fe59189a14a951eca93b077e63b"
+      },
+      {
+        "bytes": 55740,
+        "path": "shards/switching_two_state__privileged_oracle__70004.json",
+        "sha256": "8dd54fc3bbc250faf9fe2a01735d89b548f88aedd0b790c726b219eba3fcb164"
+      },
+      {
+        "bytes": 55740,
+        "path": "shards/switching_two_state__privileged_oracle__70005.json",
+        "sha256": "0231e15e474aecc6d784da35571a8ac5c1e894c82dd7f5f5eb8b48b2c33a0e28"
+      },
+      {
+        "bytes": 55742,
+        "path": "shards/switching_two_state__privileged_oracle__70006.json",
+        "sha256": "1eeae298dc76d0567e8d814c828ac050768c210c1ed4182840346fa30cc7d5db"
+      },
+      {
+        "bytes": 55740,
+        "path": "shards/switching_two_state__privileged_oracle__70007.json",
+        "sha256": "cd2f75d627f42a4e6778dbe768d7c28d33f64d69b3f8cd597affac8414e50558"
+      },
+      {
+        "bytes": 55741,
+        "path": "shards/switching_two_state__privileged_oracle__70008.json",
+        "sha256": "a697bc11c02aad239da87a014ca0d633180862796a99e805ddbb3da99eadf464"
+      },
+      {
+        "bytes": 55742,
+        "path": "shards/switching_two_state__privileged_oracle__70009.json",
+        "sha256": "3bc14b7bb2c8a496a7f7c0fa680abc18a4c6f9054ac9e33a0a570413b6cea736"
+      },
+      {
+        "bytes": 55741,
+        "path": "shards/switching_two_state__privileged_oracle__70010.json",
+        "sha256": "d326cf2f96a954793703936c76c57c2d5fc86792ee8f91cee606594e3a3c1db3"
+      },
+      {
+        "bytes": 55740,
+        "path": "shards/switching_two_state__privileged_oracle__70011.json",
+        "sha256": "d2550a833edc2d93e23df66a7591697102be18e3d1849f94275ee2aff8c4caf5"
+      },
+      {
+        "bytes": 55576,
+        "path": "shards/switching_two_state__prototype__70000.json",
+        "sha256": "4e5db84975f33f1ccae4cc38f6c15f2a28559bf1664fea644c9e0c1e6689b337"
+      },
+      {
+        "bytes": 55576,
+        "path": "shards/switching_two_state__prototype__70001.json",
+        "sha256": "6c1d61c107c04e5e41950a4eed18bd609eadc1e886ade312d21a472f71b8b60e"
+      },
+      {
+        "bytes": 55573,
+        "path": "shards/switching_two_state__prototype__70002.json",
+        "sha256": "781eb4bb57395fad696de4d9bbc12ed126130d37ba5b6f37ccfca631c16dd4be"
+      },
+      {
+        "bytes": 55576,
+        "path": "shards/switching_two_state__prototype__70003.json",
+        "sha256": "d911cbd226eec058b6fc5e7d62b575647504faefb729e9fdcf93589d165e920b"
+      },
+      {
+        "bytes": 55571,
+        "path": "shards/switching_two_state__prototype__70004.json",
+        "sha256": "eb06bde9642f322de04afe72edad4cd5b49801ef08b747ecd4dbddac3d5756f6"
+      },
+      {
+        "bytes": 55576,
+        "path": "shards/switching_two_state__prototype__70005.json",
+        "sha256": "dd5a1fa6948bd97887193008ee50d44e11f90f0f19e4891b0462bdfc57e12403"
+      },
+      {
+        "bytes": 55576,
+        "path": "shards/switching_two_state__prototype__70006.json",
+        "sha256": "273d9540ce1cea885613217d60f956aacfe13dd423d8036c01d8dcb552486f44"
+      },
+      {
+        "bytes": 55575,
+        "path": "shards/switching_two_state__prototype__70007.json",
+        "sha256": "6e0481bc8f0b8497e80e33bcc06b12c324bb853998c8da214b4fd0a9a9a29fee"
+      },
+      {
+        "bytes": 55573,
+        "path": "shards/switching_two_state__prototype__70008.json",
+        "sha256": "5b644d30162b28cb985d86c0bcae84e6d24d0c9160d5b334f9a662d9ddcd65dc"
+      },
+      {
+        "bytes": 55574,
+        "path": "shards/switching_two_state__prototype__70009.json",
+        "sha256": "95adff2bc86ed4feef84a3e157471fde60f85fc402cc76bea86dcedc1b2f7f1e"
+      },
+      {
+        "bytes": 55575,
+        "path": "shards/switching_two_state__prototype__70010.json",
+        "sha256": "0d4b43f6afe1d10b84905011b370501e6401c7c698a42f19569b387313f670b7"
+      },
+      {
+        "bytes": 55576,
+        "path": "shards/switching_two_state__prototype__70011.json",
+        "sha256": "1e20d2dbb908d9fc02e558404de1dc651d7dbdf8249f29842a1e0f795d15a5a2"
+      },
+      {
+        "bytes": 55579,
+        "path": "shards/switching_two_state__prototype_frozen__70000.json",
+        "sha256": "597940d663583dff3579589a4e3c93a619e8af2a04129f35cb54920bcff64946"
+      },
+      {
+        "bytes": 55580,
+        "path": "shards/switching_two_state__prototype_frozen__70001.json",
+        "sha256": "0e48f24410258663d745e6f5aa76bfe35f1275812f39e887c6eeefc5ec3231cb"
+      },
+      {
+        "bytes": 55581,
+        "path": "shards/switching_two_state__prototype_frozen__70002.json",
+        "sha256": "f63f6f29376b451004c82e7569014b38e404563d42bf0100c1cff2b874f07ee7"
+      },
+      {
+        "bytes": 55580,
+        "path": "shards/switching_two_state__prototype_frozen__70003.json",
+        "sha256": "52e262cb581e56076ab7c551efcdabe956a74bb764fcc497d5967bec4891ac8f"
+      },
+      {
+        "bytes": 55583,
+        "path": "shards/switching_two_state__prototype_frozen__70004.json",
+        "sha256": "4162cf9d62d7537da0fbadd08bbbd97bcb3201297abc95de97e676d95b3fd4f3"
+      },
+      {
+        "bytes": 55579,
+        "path": "shards/switching_two_state__prototype_frozen__70005.json",
+        "sha256": "432ac84542432041fc5ed58fe56ca62b8ec68ef79680e9cd58b5a60793244605"
+      },
+      {
+        "bytes": 55578,
+        "path": "shards/switching_two_state__prototype_frozen__70006.json",
+        "sha256": "1c1e53d3337721dc810d717e9465175f265e3a88c64710e47ab7a6539d64a473"
+      },
+      {
+        "bytes": 55582,
+        "path": "shards/switching_two_state__prototype_frozen__70007.json",
+        "sha256": "40f36f8c8bcc53096761b6f38d0fa7d830d7b5063831a3e1b93b0555fae862b5"
+      },
+      {
+        "bytes": 55582,
+        "path": "shards/switching_two_state__prototype_frozen__70008.json",
+        "sha256": "93b030e9b238c69bfc791a4e674786288bf5dc0bd89332973182fd74696a4bf4"
+      },
+      {
+        "bytes": 55583,
+        "path": "shards/switching_two_state__prototype_frozen__70009.json",
+        "sha256": "6c9a2fc0400079f96528ecf5fe7fe9a5fb32e259767aaa8ea2370cdaf630a621"
+      },
+      {
+        "bytes": 55582,
+        "path": "shards/switching_two_state__prototype_frozen__70010.json",
+        "sha256": "ce70744b83783999bd3291b426b2a70234c2ee3eb76b4e3a2556ed46c0b1e0ca"
+      },
+      {
+        "bytes": 55584,
+        "path": "shards/switching_two_state__prototype_frozen__70011.json",
+        "sha256": "c95d1df0e50ea81a5eb26f58c0bc1b6ea2bb6ebecb31e6d4e443b4d160abb51f"
+      },
+      {
+        "bytes": 53442,
+        "path": "shards/switching_two_state__random__70000.json",
+        "sha256": "150a97202d8f5c187b4fdcc4ec7495343cb2a67d991f031abf4bf22748b73efc"
+      },
+      {
+        "bytes": 53445,
+        "path": "shards/switching_two_state__random__70001.json",
+        "sha256": "3cb365bafec605275f6954590236c493ade2f7bfdf5ea67604b992581cd033be"
+      },
+      {
+        "bytes": 53445,
+        "path": "shards/switching_two_state__random__70002.json",
+        "sha256": "3a42074c98f2ea043e486577bf9f2b589b157c629ed653e26b20b3ddb84d3387"
+      },
+      {
+        "bytes": 53441,
+        "path": "shards/switching_two_state__random__70003.json",
+        "sha256": "f3c1126f8f5177a69ad7789f444487429711b8fcf6f42bb94049a459495205e7"
+      },
+      {
+        "bytes": 53441,
+        "path": "shards/switching_two_state__random__70004.json",
+        "sha256": "c539ef8cde7e1ee6a834431619af6b37090bf226aa8a54c88ab1f32451f7f2a7"
+      },
+      {
+        "bytes": 53443,
+        "path": "shards/switching_two_state__random__70005.json",
+        "sha256": "d11326f98e3ac71493be41544794d0348592071a3db3264206ac1982fea0e452"
+      },
+      {
+        "bytes": 53441,
+        "path": "shards/switching_two_state__random__70006.json",
+        "sha256": "da6e2737e2ff68061cf75550fc48c635478149767e0e01008fe34f0c21450c74"
+      },
+      {
+        "bytes": 53446,
+        "path": "shards/switching_two_state__random__70007.json",
+        "sha256": "da3f3fee70f1810f3a49438dd7597f5644741582dd93a16bab5b50a40aaaf17e"
+      },
+      {
+        "bytes": 53441,
+        "path": "shards/switching_two_state__random__70008.json",
+        "sha256": "6c2bfd73ef29b2ef47f2d8adcf3000f992200c8f9b7a07ea0614948fc7a02da5"
+      },
+      {
+        "bytes": 53446,
+        "path": "shards/switching_two_state__random__70009.json",
+        "sha256": "1a66286090e172049b4771bf1e2481541ac7e8ffc3d27c40e2fdd0f447bd0e45"
+      },
+      {
+        "bytes": 53444,
+        "path": "shards/switching_two_state__random__70010.json",
+        "sha256": "a0cf404edd75a0d51397665fe3bf2fad2addd05bb881b8069868031cf81951f2"
+      },
+      {
+        "bytes": 53446,
+        "path": "shards/switching_two_state__random__70011.json",
+        "sha256": "45b9e54f040a61657e9042c8b285ace8fde4061340dc6a0e24c3ea3a0aa3f391"
+      },
+      {
+        "bytes": 54391,
+        "path": "shards/switching_two_state__sarsa__70000.json",
+        "sha256": "37c925fbd55bbc03adad254bc6c28080c240aabdf6de60b7ec4639e3064650d2"
+      },
+      {
+        "bytes": 54393,
+        "path": "shards/switching_two_state__sarsa__70001.json",
+        "sha256": "c44f1988e419d91928ca790ff619879922586e356c93796d589f73055ad70965"
+      },
+      {
+        "bytes": 54388,
+        "path": "shards/switching_two_state__sarsa__70002.json",
+        "sha256": "1b934821d8302065107ff957a909876bacbfdfb13b4f70958b4da11f0027a068"
+      },
+      {
+        "bytes": 54393,
+        "path": "shards/switching_two_state__sarsa__70003.json",
+        "sha256": "43b49b21bfd281fe27d18942411cb973d22a46e10d329ba8f26f523681e5fa9c"
+      },
+      {
+        "bytes": 54392,
+        "path": "shards/switching_two_state__sarsa__70004.json",
+        "sha256": "3fd062efbe9aee64626ac1e521ee058a5e4582a75b91ce38253251fcc2327b61"
+      },
+      {
+        "bytes": 54392,
+        "path": "shards/switching_two_state__sarsa__70005.json",
+        "sha256": "d872a041c5bdc6b5aaf00c8df922d795eed5f879404348f97d848d164da87c22"
+      },
+      {
+        "bytes": 54395,
+        "path": "shards/switching_two_state__sarsa__70006.json",
+        "sha256": "6dff8f11cc843e3f0cd7a70e1342384dc0e0e78d4fe3733f30ff38e4a138bfc5"
+      },
+      {
+        "bytes": 54391,
+        "path": "shards/switching_two_state__sarsa__70007.json",
+        "sha256": "79b2b998d2be574e919717eec4c301b1007992db1397590fcb934ba991c52cfb"
+      },
+      {
+        "bytes": 54393,
+        "path": "shards/switching_two_state__sarsa__70008.json",
+        "sha256": "a303c05ee83a7bd162fb58db5a2b543391541915ccfdd1c2cc377e8e456588fc"
+      },
+      {
+        "bytes": 54395,
+        "path": "shards/switching_two_state__sarsa__70009.json",
+        "sha256": "e3d483d81bbb7f20b638c42fae69ef0db79a304856203d29d8412f3346881685"
+      },
+      {
+        "bytes": 54393,
+        "path": "shards/switching_two_state__sarsa__70010.json",
+        "sha256": "32260c4f72365f037568878ad6893215000af83fea7a5c2ff7c5a82e2bb7f467"
+      },
+      {
+        "bytes": 54396,
+        "path": "shards/switching_two_state__sarsa__70011.json",
+        "sha256": "2d6f24d6cf02c1138783abb6fca16a8a0c4c150287c0aa81e48fec7acd7e4ecf"
+      }
+    ],
+    "plan_sha256": "3e517054b5802cbd759e6d9d8e6d890b893a991111aec60a845772bb947820f2",
+    "shard_count": 144
+  },
+  "run": {
+    "arms": [
+      "differential_sarsa",
+      "privileged_oracle",
+      "prototype",
+      "prototype_frozen",
+      "random",
+      "sarsa"
+    ],
+    "environments": [
+      "riverswim",
+      "switching_two_state"
+    ],
+    "execution_mode": "single_host_local_detached_processes",
+    "host_uname": "Linux lumix-System-Product-Name 7.0.0-34-generic #34-Ubuntu SMP PREEMPT_DYNAMIC Wed Sep  2 14:29:37 UTC 2026 x86_64",
+    "job_count": 144,
+    "launcher": "outputs/reference_life_scorecard_development/run1-2026-10-03/run_all.sh",
+    "parallel_workers": 6,
+    "seeds": [
+      70000,
+      70001,
+      70002,
+      70003,
+      70004,
+      70005,
+      70006,
+      70007,
+      70008,
+      70009,
+      70010,
+      70011
+    ]
+  },
+  "runtime": {
+    "jax": "0.11.0",
+    "jaxlib": "0.11.0",
+    "note": "uv 0.9.22 created this locked environment; the CI workflow pins uv 0.9.24. Dependency versions come from the same uv.lock.",
+    "numpy": "2.5.1",
+    "python": "3.12.12",
+    "python_executable_sha256": "cc8522e13ca1c114e1fd116948b2e6b43b031f85ca42f1b25dee62807e553ee1",
+    "uv": "uv 0.9.22"
+  },
+  "schema": "asi.reference_life_scorecard.local_run.v1",
+  "source": {
+    "commit": "f3d32c451ed1c1715e477ad56b782fc7ea89b206",
+    "ref": "benchmarks/reference-life-scorecard-run1-2026-10-03",
+    "repository": "SlopDotCash/asi",
+    "tree": "602620ab20bd149ba3bca258f2b0cc94ce398527",
+    "uv_lock_sha256": "0fc52a642ba70bd64bfa80049b1efc99c35829d01e44705370994ad818ee82d7",
+    "workflow_blob_sha1": "69a120e3e95cea8c44ad3ca2a5cfcb5f1e4c74f1"
+  }
+}
