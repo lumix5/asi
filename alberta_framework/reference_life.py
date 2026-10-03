@@ -1194,6 +1194,25 @@ class _ImmutableRiverSwimMDP(RiverSwimMDP):
         object.__delattr__(self, name)
 
 
+def _canonical_oracle_average_reward(value: float) -> float:
+    """Quantize one LAPACK-derived oracle scalar onto a machine-invariant grid.
+
+    ``RiverSwimMDP.optimal_average_reward`` solves its stationary system
+    through ``numpy.linalg.lstsq``, whose final float64 bit may differ across
+    runner CPU microarchitectures. The value is embedded in the environment
+    manifest config and therefore in ``config_sha256`` and ``manifest_id``,
+    which the scorecard aggregate and checkpoint restore compare bit-exactly
+    across machines. Rounding to 12 significant decimal digits removes that
+    last-bit drift — the quantization grid is roughly ten thousand float64
+    ULPs wide — while staying far below any decision-relevant precision.
+    """
+
+    canonical = float(f"{value:.12g}")
+    if not math.isfinite(canonical):
+        raise ValueError("RiverSwim canonical stationary oracle must be finite")
+    return canonical
+
+
 class RiverSwimReferenceEnvironment:
     """Strict keyed codec/executor wrapper for the stochastic RiverSwim MDP."""
 
@@ -1279,6 +1298,7 @@ class RiverSwimReferenceEnvironment:
         oracle_reward = environment.optimal_average_reward()
         if not math.isfinite(oracle_reward):
             raise ValueError("RiverSwim exact stationary oracle must be finite")
+        oracle_reward = _canonical_oracle_average_reward(oracle_reward)
         self._environment = environment
         self._oracle_reward = oracle_reward
         self._manifest = ReferenceEnvironmentManifest.from_config(
