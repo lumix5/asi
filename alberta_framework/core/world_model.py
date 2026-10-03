@@ -53,6 +53,12 @@ from alberta_framework.core.update_safety import (
 )
 
 _INT32_MAX = 2**31 - 1
+# Serialized-sequence cardinality ceiling, matching the merged house bounds
+# (working-memory decay lists #2220, stacked-horde demons, UPGD-memory
+# hidden sizes, ``types._MAX_HORDE_DEMONS``): a hostile or mistaken payload
+# with millions of layer sizes must be rejected before the per-element walk
+# and the tuple copy inside the deserialization boundary, not after them.
+_MAX_HIDDEN_SIZES = 1 << 12
 _ACTUAL_INT_TYPES = frozenset({int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")})
 _ACTUAL_FLOAT_TYPES = frozenset(
     {float, Fraction, *(np.dtype(code).type for code in ("e", "f", "d", "g"))}
@@ -97,6 +103,10 @@ def _validated_step_size(name: str, value: object) -> float:
 def _validate_hidden_sizes(value: object) -> tuple[int, ...]:
     if type(value) is not tuple:
         raise ValueError("hidden_sizes must be an actual tuple")
+    if len(value) > _MAX_HIDDEN_SIZES:
+        raise ValueError(
+            f"hidden_sizes length must be an integer in [0, {_MAX_HIDDEN_SIZES}]"
+        )
     return tuple(
         _require_int32(f"hidden_sizes[{index}]", width, minimum=1)
         for index, width in enumerate(value)
@@ -223,10 +233,17 @@ def _validate_world_model_resources(
             raise ValueError(f"derived {name} must fit in signed int32")
 
 
-def _serialized_sequence(name: str, value: object) -> tuple[Any, ...]:
+def _serialized_sequence(
+    name: str, value: object, *, maximum: int | None = None
+) -> tuple[Any, ...]:
     if type(value) not in (list, tuple):
         raise ValueError(f"serialized {name} must be an actual list or tuple")
-    return tuple(cast(list[Any] | tuple[Any, ...], value))
+    sequence = cast(list[Any] | tuple[Any, ...], value)
+    if maximum is not None and len(sequence) > maximum:
+        raise ValueError(
+            f"serialized {name} length must be an integer in [0, {maximum}]"
+        )
+    return tuple(sequence)
 
 
 def _require_scan_resource(name: str, *, float32_scalars: int, bool_scalars: int) -> None:
@@ -432,7 +449,7 @@ class ActionConditionedWorldModelConfig:
             raise ValueError("config type differs")
         if "hidden_sizes" in payload:
             payload["hidden_sizes"] = _serialized_sequence(
-                "hidden_sizes", payload["hidden_sizes"]
+                "hidden_sizes", payload["hidden_sizes"], maximum=_MAX_HIDDEN_SIZES
             )
         if "observation_scale" in payload and payload["observation_scale"] is not None:
             payload["observation_scale"] = _serialized_sequence(
@@ -1242,7 +1259,7 @@ class WorldModelConfig:
             raise ValueError("config type differs")
         if "hidden_sizes" in payload:
             payload["hidden_sizes"] = _serialized_sequence(
-                "hidden_sizes", payload["hidden_sizes"]
+                "hidden_sizes", payload["hidden_sizes"], maximum=_MAX_HIDDEN_SIZES
             )
         return cls(**payload)
 
