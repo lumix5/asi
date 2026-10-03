@@ -351,6 +351,22 @@ def _require_typed_key(name: str, value: object) -> Array:
     return key
 
 
+_MAX_CONFIG_SEQUENCE_LENGTH = 4_096
+
+
+def _require_sequence_length(name: str, count: int) -> None:
+    """Bound a serialized config sequence before its per-element walk.
+
+    Mirrors ``step9._MAX_CONFIG_SEQUENCE_LENGTH``; 4096 is also the core
+    ``_MAX_HORDE_DEMONS``/``_MAX_HIDDEN_SIZES`` ceiling, so no previously
+    valid facade config is affected.
+    """
+    if count > _MAX_CONFIG_SEQUENCE_LENGTH:
+        raise ValueError(
+            f"{name} must contain at most {_MAX_CONFIG_SEQUENCE_LENGTH} values"
+        )
+
+
 def _validate_step2_kernel_config(config: Step2KernelConfig) -> None:
     if type(config) is not Step2KernelConfig:
         raise ValueError("config must be an exact Step2KernelConfig")
@@ -364,6 +380,7 @@ def _validate_step2_kernel_config(config: Step2KernelConfig) -> None:
         raise ValueError(
             "hidden_sizes must be a tuple of integers"
         )
+    _require_sequence_length("hidden_sizes", len(config.hidden_sizes))
     canonical_hidden: list[int] = []
     for h in config.hidden_sizes:
         canonical_hidden.append(
@@ -420,6 +437,7 @@ def _validate_step2_strict_digit_config(config: Step2StrictDigitReadoutConfig) -
         raise ValueError(
             "hidden_sizes must be a tuple of integers"
         )
+    _require_sequence_length("hidden_sizes", len(config.hidden_sizes))
     canonical_hidden: list[int] = []
     for h in config.hidden_sizes:
         canonical_hidden.append(

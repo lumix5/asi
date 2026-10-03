@@ -531,12 +531,30 @@ def _require_choice(name: str, value: object, choices: Sequence[str]) -> str:
     return value
 
 
+_MAX_CONFIG_SEQUENCE_LENGTH = 4_096
+
+
+def _require_sequence_length(name: str, count: int) -> None:
+    """Bound a serialized config sequence before its per-element walk.
+
+    Mirrors ``step9._MAX_CONFIG_SEQUENCE_LENGTH``; 4096 is also the core
+    ``_MAX_HORDE_DEMONS``/``_MAX_HIDDEN_SIZES`` ceiling that
+    :func:`alberta_framework.core.types.create_horde_spec` enforces downstream,
+    so the facade now fails at construction instead of after the walk.
+    """
+    if count > _MAX_CONFIG_SEQUENCE_LENGTH:
+        raise ValueError(
+            f"{name} must contain at most {_MAX_CONFIG_SEQUENCE_LENGTH} values"
+        )
+
+
 def _validate_horde_config(config: Step3HordeConfig) -> None:
     if type(config) is not Step3HordeConfig:
         raise ValueError("config must be an exact Step3HordeConfig")
     for name in ("gammas", "lamdas", "hidden_sizes"):
         if type(getattr(config, name)) is not tuple:
             raise ValueError(f"{name} must be an actual tuple")
+        _require_sequence_length(name, len(getattr(config, name)))
     if len(config.gammas) == 0:
         raise ValueError("Step 3 Horde must have at least one demon")
     if len(config.gammas) != len(config.lamdas):

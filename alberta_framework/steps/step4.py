@@ -248,10 +248,27 @@ def _require_choice(name: str, value: object, choices: tuple[str, ...]) -> str:
     return value
 
 
+_MAX_CONFIG_SEQUENCE_LENGTH = 4_096
+
+
+def _require_sequence_length(name: str, count: int) -> None:
+    """Bound a serialized config sequence before its per-element walk.
+
+    Mirrors ``step9._MAX_CONFIG_SEQUENCE_LENGTH``; 4096 is also the core
+    ``_MAX_HIDDEN_SIZES`` ceiling, so no previously valid facade config is
+    affected.
+    """
+    if count > _MAX_CONFIG_SEQUENCE_LENGTH:
+        raise ValueError(
+            f"{name} must contain at most {_MAX_CONFIG_SEQUENCE_LENGTH} values"
+        )
+
+
 def _validate_sarsa_config(config: Step4SARSAConfig) -> None:
     n_actions = _require_positive_int("n_actions", config.n_actions)
     if type(config.hidden_sizes) is not tuple:
         raise ValueError("hidden_sizes must be an actual tuple")
+    _require_sequence_length("hidden_sizes", len(config.hidden_sizes))
     hidden_sizes = tuple(
         _require_positive_int("hidden_sizes", size) for size in config.hidden_sizes
     )

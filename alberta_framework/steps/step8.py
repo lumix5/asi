@@ -199,6 +199,22 @@ def _require_bool(name: object, value: object) -> bool:
     return value
 
 
+_MAX_CONFIG_SEQUENCE_LENGTH = 4_096
+
+
+def _require_sequence_length(name: str, count: int) -> None:
+    """Bound a serialized config sequence before its per-element walk.
+
+    Mirrors ``step9._MAX_CONFIG_SEQUENCE_LENGTH``; 4096 is also the core
+    ``_MAX_HIDDEN_SIZES`` ceiling, so no previously valid facade config is
+    affected.
+    """
+    if count > _MAX_CONFIG_SEQUENCE_LENGTH:
+        raise ValueError(
+            f"{name} must contain at most {_MAX_CONFIG_SEQUENCE_LENGTH} values"
+        )
+
+
 def _validate_world_model_config(config: Step8WorldModelConfig) -> None:
     observation_dim = _require_int(
         "observation_dim",
@@ -214,6 +230,7 @@ def _validate_world_model_config(config: Step8WorldModelConfig) -> None:
     action_dim = _require_int("action_dim", config.action_dim, minimum=1, maximum=_INT32_MAX)
     if type(config.hidden_sizes) is not tuple:
         raise ValueError("hidden_sizes must be an actual tuple")
+    _require_sequence_length("hidden_sizes", len(config.hidden_sizes))
     hidden_sizes = tuple(
         _require_int("hidden_sizes", size, minimum=1, maximum=_INT32_MAX)
         for size in config.hidden_sizes
