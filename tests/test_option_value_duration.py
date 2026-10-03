@@ -151,7 +151,7 @@ def test_config_rounds_exact_rationals_to_float32_with_ties_to_even(field: str) 
 
 @pytest.mark.parametrize(
     "field",
-    ("reward_step_size", "duration_step_size", "duration_floor"),
+    ("reward_step_size", "duration_step_size"),
 )
 def test_config_enforces_exact_float32_underflow_and_overflow_midpoints(field: str) -> None:
     minimum_subnormal = float(np.nextafter(np.float32(0.0), np.float32(1.0)))
@@ -169,6 +169,33 @@ def test_config_enforces_exact_float32_underflow_and_overflow_midpoints(field: s
     assert getattr(below_overflow, field) == float(np.finfo(np.float32).max)
     with pytest.raises(ValueError, match=field):
         OptionValueDurationConfig(**{field: overflow_midpoint})
+
+
+def test_config_enforces_exact_float32_minimum_normal_floor_boundaries() -> None:
+    """The duration floor must be a float32 normal, not merely positive.
+
+    A subnormal floor defeats the ``predict`` division guard (ordinary
+    numerators overflow to ``inf`` against a ``1.4e-45`` denominator), so the
+    floor boundary is the float32 minimum normal in both the exact host domain
+    and the narrowed binary32 domain.
+    """
+    underflow_midpoint = Fraction(1, 2**150)
+    overflow_midpoint = Fraction(((2**24 - 1) * 2**104) + 2**103)
+    minimum_normal = float(np.finfo(np.float32).tiny)
+
+    with pytest.raises(ValueError, match="duration_floor"):
+        OptionValueDurationConfig(duration_floor=underflow_midpoint)
+    with pytest.raises(ValueError, match="duration_floor"):
+        OptionValueDurationConfig(
+            duration_floor=underflow_midpoint + Fraction(1, 2**200)
+        )
+    floor = OptionValueDurationConfig(duration_floor=Fraction(minimum_normal))
+    assert floor.duration_floor == minimum_normal
+
+    below_overflow = OptionValueDurationConfig(duration_floor=overflow_midpoint - 1)
+    assert below_overflow.duration_floor == float(np.finfo(np.float32).max)
+    with pytest.raises(ValueError, match="duration_floor"):
+        OptionValueDurationConfig(duration_floor=overflow_midpoint)
 
 
 def test_config_canonicalizes_real_scalars_and_preserves_builtin_float_payload() -> None:

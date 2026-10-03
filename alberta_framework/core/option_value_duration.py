@@ -39,7 +39,10 @@ import numpy as np
 from jax import Array
 from jaxtyping import Bool, Float, Int
 
-from alberta_framework.core._float32_scalars import validated_float32_scalar_with_ratio
+from alberta_framework.core._float32_scalars import (
+    validated_float32_scalar,
+    validated_float32_scalar_with_ratio,
+)
 
 REWARD_HEAD = 0
 DURATION_HEAD = 1
@@ -101,6 +104,21 @@ def _require_float32_real(
     return stored
 
 
+_FLOAT32_MIN_NORMAL: float = float.fromhex("0x1.0p-126")
+
+
+def _require_positive_normal_real(name: str, value: object) -> float:
+    """Validate one strictly positive host scalar no smaller than float32 tiny normal.
+
+    Division floors must stay in the normal range: a subnormal floor passes a
+    merely-positive check but overflows ordinary numerators to ``inf`` when the
+    guarded denominator reaches it (``0.1 / 1.4e-45``), and a zero numerator
+    then reports ``nan``.  Same convention as ``prototype_memory`` and
+    ``upgd_memory``.
+    """
+    return validated_float32_scalar(name, value, lower=_FLOAT32_MIN_NORMAL)
+
+
 def _state_resources(n_options: int, feature_dim: int) -> dict[str, int]:
     """Exact persistent array envelope, excluding Python/compiled/transient data."""
     trainable_parameters = n_options * N_HEADS * feature_dim
@@ -131,7 +149,9 @@ class OptionValueDurationConfig:
         reward_step_size: Step-size for the cumulative-reward head.
         duration_step_size: Step-size for the remaining-duration head.
         duration_floor: Positive denominator floor used only when reporting
-            reward-per-step scores.  It does not alter either TD target.
+            reward-per-step scores.  It does not alter either TD target.  It
+            must be at least the float32 minimum normal so the reported
+            division cannot overflow for ordinary magnitudes.
     """
 
     reward_step_size: float = 0.1
@@ -161,11 +181,7 @@ class OptionValueDurationConfig:
         object.__setattr__(
             self,
             "duration_floor",
-            _require_float32_real(
-                "duration_floor",
-                self.duration_floor,
-                strictly_positive=True,
-            ),
+            _require_positive_normal_real("duration_floor", self.duration_floor),
         )
 
     def to_config(self) -> dict[str, Any]:
