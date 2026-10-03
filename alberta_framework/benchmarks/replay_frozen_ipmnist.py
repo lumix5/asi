@@ -81,7 +81,12 @@ class FrozenFeatureState:
 
 def _key_from_params(params: dict[str, Array], domain: int) -> Array:
     bits = jax.lax.bitcast_convert_type(params["w1"].reshape(-1), jnp.uint32)
-    key = jr.fold_in(jr.key(jnp.uint32(domain)), bits[0])
+    # The frozen extractors are identity-bearing: the domain root is pinned to
+    # explicit threefry2x32 so the recorded (arm, seed, source) identity pins
+    # the feature map regardless of the ambient jax_default_prng_impl.
+    key = jr.fold_in(
+        jr.key(jnp.uint32(domain), impl="threefry2x32"), bits[0]
+    )
     return jr.fold_in(key, bits[-1])
 
 

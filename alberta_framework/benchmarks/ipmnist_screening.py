@@ -4226,7 +4226,13 @@ def _make_rff_rls_learner(
         w1_bits = jax.lax.bitcast_convert_type(
             params["w1"].astype(jnp.float32).reshape(-1), jnp.uint32
         )
-        key = jr.fold_in(jr.key(jnp.uint32(_RFF_KEY_DOMAIN)), w1_bits[0])
+        # The frozen Omega/b draw is identity-bearing: the domain root is
+        # pinned to explicit threefry2x32 so the recorded (arm, seed, source)
+        # identity pins the feature map regardless of the ambient
+        # jax_default_prng_impl.
+        key = jr.fold_in(
+            jr.key(jnp.uint32(_RFF_KEY_DOMAIN), impl="threefry2x32"), w1_bits[0]
+        )
         key = jr.fold_in(key, w1_bits[-1])
         key_omega, key_phase = jr.split(key)
         omega = jr.normal(key_omega, (m, input_dim), jnp.float32) * math.sqrt(gamma)
