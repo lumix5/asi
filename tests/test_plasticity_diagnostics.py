@@ -273,6 +273,32 @@ def test_cli_rejects_compressed_oversize_members_before_materialize(
         main(("--dataset", str(dataset), "--seed", str(FROZEN_SEEDS[0])))
 
 
+def test_module_dash_m_entry_emits_the_catalog() -> None:
+    """`python -m` must run the same CLI, not exit 0 as a silent no-op."""
+
+    import subprocess
+    import sys
+
+    repository_root = Path(__file__).resolve().parents[1]
+    completed = subprocess.run(
+        (
+            sys.executable,
+            "-m",
+            "alberta_framework.benchmarks.plasticity_diagnostics",
+            "--catalog",
+        ),
+        cwd=repository_root,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=300,
+    )
+    assert completed.returncode == 0, completed.stderr
+    payload = json.loads(completed.stdout)
+    assert payload["schema"] == plasticity_diagnostics.SCHEMA
+    assert payload["costly_lane_gates"]["execution_authorized"] is False
+
+
 @pytest.mark.parametrize("without_posix_flags", [False, True])
 def test_cli_accepts_bounded_hardlinked_dataset_on_portable_runtime(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, without_posix_flags: bool

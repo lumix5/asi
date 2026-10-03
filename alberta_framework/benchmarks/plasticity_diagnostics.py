@@ -728,3 +728,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise ValueError("dataset NPZ must be a bounded regular file")
     print(_json_result(result))
     return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
