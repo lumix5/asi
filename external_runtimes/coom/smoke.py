@@ -64,6 +64,12 @@ STEPS_PER_TASK = 2
 _QUALIFICATION_ROOT = Path("/opt/qualification")
 _MAX_MANIFEST_BYTES = 8192
 _MAX_RECEIPT_BYTES = 1024 * 1024
+# Receipt JSON must stay bounded on every supported interpreter. CPython's C
+# JSON scanner raised RecursionError for deeply nested input only before 3.14;
+# the iterative 3.14 scanner parses far deeper payloads without one, so the
+# nesting bound is enforced explicitly here instead of via the interpreter.
+# The limit matches the framework-wide strict JSON depth contract.
+_MAX_RECEIPT_JSON_DEPTH = 64
 _MAX_PROC_STATUS_BYTES = 64 * 1024
 
 
@@ -333,6 +339,31 @@ def _load_qualification_manifest() -> dict[str, object]:
     return manifest
 
 
+def _reject_unbounded_receipt_nesting(text: str) -> None:
+    """Reject receipt nesting past the explicit depth bound before parsing."""
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for character in text:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                in_string = False
+            continue
+        if character == '"':
+            in_string = True
+        elif character in "[{":
+            depth += 1
+            if depth > _MAX_RECEIPT_JSON_DEPTH:
+                raise ValueError("receipt input must be bounded valid JSON")
+        elif character in "]}":
+            depth -= 1
+
+
 def load_receipt(path: Path) -> dict[str, object]:
     """Strictly load one bounded regular receipt without following a final symlink."""
 
@@ -383,6 +414,7 @@ def load_receipt(path: Path) -> dict[str, object]:
         text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise ValueError("receipt input must be UTF-8") from exc
+    _reject_unbounded_receipt_nesting(text)
     try:
         value = json.loads(
             text,

@@ -337,6 +337,31 @@ def test_coom_retained_receipt_loader_is_bounded_and_fail_closed(tmp_path: Path)
         smoke.load_receipt(receipt)
 
 
+def test_coom_receipt_depth_bound_is_explicit_across_interpreters(tmp_path: Path) -> None:
+    smoke = _smoke_module()
+    receipt = tmp_path / "receipt.json"
+
+    # Structural characters inside strings do not count toward nesting depth.
+    receipt.write_text('{"a":"[[{\\"x\\":1}]]","b":[[1],[2]]}', encoding="utf-8")
+    assert smoke.load_receipt(receipt) == {"a": '[[{"x":1}]]', "b": [[1], [2]]}
+
+    # Depth at the explicit limit still loads, independent of interpreter
+    # recursion limits (61 total levels including the receipt object).
+    within = '{"nested":' + "[" * 60 + "0" + "]" * 60 + "}"
+    expected: list[object] = [0]
+    for _ in range(59):
+        expected = [expected]
+    receipt.write_text(within, encoding="utf-8")
+    assert smoke.load_receipt(receipt) == {"nested": expected}
+
+    # One level past the explicit limit is rejected before the parser is
+    # consulted; CPython >= 3.14 parses this payload without a RecursionError.
+    beyond = '{"nested":' + "[" * 64 + "0" + "]" * 64 + "}"
+    receipt.write_text(beyond, encoding="utf-8")
+    with pytest.raises(ValueError, match="bounded valid JSON"):
+        smoke.load_receipt(receipt)
+
+
 def test_receipt_parent_traversal_does_not_require_directory_read_permission(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
