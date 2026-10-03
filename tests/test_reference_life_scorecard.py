@@ -16,6 +16,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from alberta_framework import reference_life as reference_life_module
 from alberta_framework.benchmarks import reference_life_scorecard as scorecard
 from alberta_framework.benchmarks.reference_life_scorecard import (
     ARM_ROSTER,
@@ -30,7 +31,9 @@ from alberta_framework.benchmarks.reference_life_scorecard import (
     write_new_json,
 )
 from alberta_framework.reference_agent import ArrayValue
-from alberta_framework.reference_life import canonical_riverswim_oracle_average_reward
+from alberta_framework.reference_life import (
+    canonical_riverswim_oracle_average_reward,
+)
 from alberta_framework.reference_life_controls import (
     DifferentialSARSAReferenceConfig,
     DiscountedSARSAReferenceConfig,
@@ -1127,7 +1130,17 @@ def test_resolved_components_are_stable_under_stationary_solver_last_ulp_drift(
     another kernel (run 34950746882: all 144 shard jobs validated their own
     records; the aggregate rejected 26 RiverSwim records). The environment
     binds a lattice-canonical oracle value, so this comparison must hold even
-    under a one-ulp perturbation of every ``lstsq`` result.
+    when the kernel perturbs the stationary solution by a last-ulp additive
+    term on one component — measured on this protocol config (``n_states=6``)
+    to move the raw float64 oracle by exactly one ulp
+    (``0.857150141887256`` to ``0.8571501418872559``) while the bound lattice
+    value stays bitwise ``0.857150137424469``.
+
+    A *relative* rescale of the solution is the wrong probe here: the solver
+    rescales its own result (``clip`` then ``distribution /
+    distribution.sum()``), so a uniform relative factor divides out and the
+    drift never reaches the oracle — under that probe this test passed even
+    with the canonical binding reverted, guarding nothing.
     """
     plan = build_development_plan()
     spec = next(
@@ -1143,15 +1156,16 @@ def test_resolved_components_are_stable_under_stationary_solver_last_ulp_drift(
     real_lstsq = np.linalg.lstsq
 
     def drifted_lstsq(*args: Any, **kwargs: Any) -> Any:
-        """Return the LAPACK solution perturbed by solver-noise-scale drift.
+        """Return the LAPACK solution with a last-ulp additive term.
 
-        The relative perturbation (2^-40, about 1e-12) stays nine decimal
-        orders below the float32 lattice resolution while remaining large
-        enough to survive the solver's final normalization and rounding, so
-        the simulated kernel difference cannot vanish by coincidence.
+        One component receives ``+1e-16``, the scale of a real kernel's
+        last-ulp disagreement on this protocol's stationary distribution; it
+        survives the solver's clip and renormalization and reaches the
+        oracle's least significant bit.
         """
         solution, residuals, rank, singular_values = real_lstsq(*args, **kwargs)
-        nudged = solution * (1.0 + 2.0**-40)
+        nudged = np.array(solution, copy=True)
+        nudged[0] += 1e-16
         return nudged, residuals, rank, singular_values
 
     monkeypatch.setattr(np.linalg, "lstsq", drifted_lstsq)
@@ -1160,6 +1174,22 @@ def test_resolved_components_are_stable_under_stationary_solver_last_ulp_drift(
     )
 
     assert scorecard._json_exact_equal(drifted, baseline)
+
+    # Mutation check: the constructor-side binding is load-bearing. The
+    # constructor resolves the canonical projection from the ``reference_life``
+    # module namespace, so reverting it there (not the scorecard symbol, which
+    # only the validators consult) with the one-ulp kernel difference live
+    # reaches the bound manifest digest and the resolutions stop matching.
+    with monkeypatch.context() as context:
+        context.setattr(
+            reference_life_module,
+            "canonical_riverswim_oracle_average_reward",
+            lambda river: river.optimal_average_reward(),
+        )
+        reverted = scorecard._resolved_components(
+            plan, spec, scorecard.build_scorecard_runner(plan, spec)
+        )
+        assert not scorecard._json_exact_equal(reverted, baseline)
 
 
 def _riverswim_prototype_spec() -> tuple[
@@ -1257,8 +1287,14 @@ def test_outcome_validators_stay_kernel_independent_through_the_canonical_oracle
     and compare it against record regrets with a 1e-12 tolerance.  Reverting
     either substitution re-exposes the LAPACK kernel's last ulp, so a valid
     record from another kernel is rejected (run 34950746882).  The drift here
-    (2^-30 relative, about 9.3e-10) stays far below the float32 lattice
-    resolution while exceeding that tolerance by three orders of magnitude.
+    is a last-ulp additive term on one ``lstsq`` component — the same
+    perturbation measured to move the raw float64 oracle by exactly one ulp
+    on this protocol config — which the lattice projection absorbs bitwise.
+
+    A *relative* rescale of the solution would guard nothing: the solver
+    rescales its own result (``clip`` then ``distribution /
+    distribution.sum()``), so a uniform relative factor divides out before it
+    can reach the oracle.
     """
     plan, spec = _riverswim_prototype_spec()
     completed = _completed_record(plan, spec)
@@ -1273,7 +1309,8 @@ def test_outcome_validators_stay_kernel_independent_through_the_canonical_oracle
 
     def drifted_lstsq(*args: Any, **kwargs: Any) -> Any:
         solution, residuals, rank, singular_values = real_lstsq(*args, **kwargs)
-        nudged = solution * (1.0 + 2.0**-30)
+        nudged = np.array(solution, copy=True)
+        nudged[0] += 1e-16
         return nudged, residuals, rank, singular_values
 
     monkeypatch.setattr(np.linalg, "lstsq", drifted_lstsq)
@@ -1294,11 +1331,18 @@ def test_outcome_validators_reject_records_once_the_canonical_binding_is_reverte
     """Mutation check: each validator needs its canonical-oracle substitution.
 
     Bypassing ``canonical_riverswim_oracle_average_reward`` re-exposes the
-    drifted stationary solve, so the validator's recomputed oracle departs from
+    raw stationary solve, so the validator's recomputed oracle departs from
     the record's stored regrets and the otherwise-valid record must be
     rejected.  Applying the patch to one validator at a time proves both
     call sites (``_validate_completed_outcome`` and ``_validate_partial_outcome``)
     are individually load-bearing.
+
+    The rejection here is driven by the stored lattice-canonical value
+    (``0.857150137424469``) differing from the raw float64 oracle by about
+    4.5e-9, far above the 1e-12 regret tolerance; the last-ulp additive
+    kernel drift stacked on top (one component ``+1e-16``, measured to move
+    the raw oracle by exactly one ulp) models the cross-kernel disagreement
+    the binding exists to absorb.
     """
     plan, spec = _riverswim_prototype_spec()
     records = {
@@ -1310,7 +1354,8 @@ def test_outcome_validators_reject_records_once_the_canonical_binding_is_reverte
 
     def drifted_lstsq(*args: Any, **kwargs: Any) -> Any:
         solution, residuals, rank, singular_values = real_lstsq(*args, **kwargs)
-        nudged = solution * (1.0 + 2.0**-30)
+        nudged = np.array(solution, copy=True)
+        nudged[0] += 1e-16
         return nudged, residuals, rank, singular_values
 
     monkeypatch.setattr(np.linalg, "lstsq", drifted_lstsq)
