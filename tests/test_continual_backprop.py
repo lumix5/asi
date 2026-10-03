@@ -3,6 +3,8 @@
 Reference: Dohare et al. 2024, "Loss of plasticity in deep continual learning."
 """
 
+import re
+
 import chex
 import jax
 import jax.numpy as jnp
@@ -11,6 +13,7 @@ import numpy as np
 import pytest
 
 from alberta_framework.core.continual_backprop import (
+    _MAX_HIDDEN_SIZES,
     CBPLearningResult,
     CBPMLPLearner,
     CBPMLPState,
@@ -130,6 +133,26 @@ class TestInitCbpStateShapes:
         per_head_tuple["per_head_gamma_lamda"] = (0.5,)
         with pytest.raises(ValueError, match="per_head_gamma_lamda.*list"):
             CBPMultiHeadMLPLearner.from_config(per_head_tuple)
+
+    def test_wrapper_from_config_rejects_oversized_serialized_sequences(self):
+        """Oversized payload lists are rejected before any element is read.
+
+        ``from_config`` walks ``hidden_sizes`` and ``per_head_gamma_lamda``
+        element by element, so a multi-million-entry list would cost minutes
+        of pure-Python walking inside the deserialization boundary. Both lists
+        share the house 4096-item serialized-sequence ceiling (cf. #2220,
+        ``types._MAX_HORDE_DEMONS``).
+        """
+        config = CBPMultiHeadMLPLearner(n_heads=1, hidden_sizes=()).to_config()
+        oversized_hidden = dict(config)
+        oversized_hidden["hidden_sizes"] = [1] * (_MAX_HIDDEN_SIZES + 1)
+        with pytest.raises(ValueError, match=re.escape(f"[0, {_MAX_HIDDEN_SIZES}]")):
+            CBPMultiHeadMLPLearner.from_config(oversized_hidden)
+
+        oversized_gains = dict(config)
+        oversized_gains["per_head_gamma_lamda"] = [0.5] * (_MAX_HIDDEN_SIZES + 1)
+        with pytest.raises(ValueError, match=re.escape(f"[0, {_MAX_HIDDEN_SIZES}]")):
+            CBPMultiHeadMLPLearner.from_config(oversized_gains)
 
     def test_wrapper_from_config_requires_exact_outer_schema(self):
         config = CBPMultiHeadMLPLearner(n_heads=1, hidden_sizes=()).to_config()

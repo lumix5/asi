@@ -149,6 +149,13 @@ _CBP_SINGLE_CONFIG_FIELDS = _CBP_MULTI_CONFIG_FIELDS - {
     "per_head_gamma_lamda",
 }
 _INT32_MAX = 2**31 - 1
+
+# Serialized-sequence cardinality ceiling, matching the house bound already
+# merged for working-memory decay lists (#2220), stacked-horde demons,
+# ``types._MAX_HORDE_DEMONS``, and UPGD/multi-head ``hidden_sizes``: a hostile
+# or mistaken payload with millions of entries must be rejected before the
+# per-element walks below, not after them.
+_MAX_HIDDEN_SIZES = 1 << 12
 _FLOAT32_MIN_NORMAL = float.fromhex("0x1.0p-126")
 _ACTUAL_INT_TYPES: frozenset[type] = frozenset(
     {int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")}
@@ -1104,6 +1111,16 @@ class CBPMultiHeadMLPLearner:
             and type(config["per_head_gamma_lamda"]) is not list
         ):
             raise ValueError("per_head_gamma_lamda must be a list")
+        if len(config["hidden_sizes"]) > _MAX_HIDDEN_SIZES:
+            raise ValueError(
+                f"hidden_sizes length must be an integer in [0, {_MAX_HIDDEN_SIZES}]"
+            )
+        if config["per_head_gamma_lamda"] is not None and len(
+            config["per_head_gamma_lamda"]
+        ) > _MAX_HIDDEN_SIZES:
+            raise ValueError(
+                f"per_head_gamma_lamda length must be an integer in [0, {_MAX_HIDDEN_SIZES}]"
+            )
         if type(config["n_heads"]) is not int:
             raise ValueError("serialized n_heads must be an exact JSON integer")
         if any(type(width) is not int for width in config["hidden_sizes"]):
