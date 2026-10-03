@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import math
+import struct
 from typing import Any
 
 import jax.numpy as jnp
@@ -454,3 +455,71 @@ def test_environment_identity_is_stable_under_stationary_solver_last_ulp_drift(
         )
         reverted = build()
         assert reverted.manifest.descriptor() != baseline.manifest.descriptor()
+
+
+def test_environment_identity_binds_both_observed_ci_solver_variants(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The two oracle variants recorded by CI run 34950746882 share one identity.
+
+    The failed aggregate run recorded exactly two raw float64 stationary-oracle
+    values across its 72 RiverSwim shard records: 46 majority-kernel shards
+    carrying bit pattern ``0x3feb6dc622655c5c`` and 26 minority-kernel shards
+    carrying ``0x3feb6dc622655c5d``, one float64 ulp apart. The synthetic
+    last-ulp drift probe above models the mechanism; this test pins the
+    *observed* witness bytes so a future projection change that still absorbs
+    a synthetic nudge cannot silently move the bound identity off the values
+    the consumed run actually produced.
+
+    Both pinned variants must project onto one manifest identity — the one
+    this host binds — bitwise. The preconditions (distinct raw values on
+    adjacent float64 bit patterns) are asserted so editing the hex literals
+    cannot void the pin.
+    """
+    majority_raw = struct.unpack(">d", bytes.fromhex("3feb6dc622655c5c"))[0]
+    minority_raw = struct.unpack(">d", bytes.fromhex("3feb6dc622655c5d"))[0]
+    assert majority_raw != minority_raw
+    assert math.nextafter(majority_raw, math.inf) == minority_raw
+
+    plan = build_development_plan()
+    protocol = plan.protocol("riverswim")
+    environment_config = RiverSwimConfig(  # type: ignore[call-arg]
+        n_states=protocol["n_states"],
+        p_right_up=protocol["p_right_up"],
+        p_right_down=protocol["p_right_down"],
+        reward_left=protocol["reward_left"],
+        reward_right=protocol["reward_right"],
+        initial_state=protocol["initial_state"],
+    )
+    adapter = UniformRandomReferenceAdapter(
+        UniformRandomReferenceConfig.for_riverswim(environment_config)
+    )
+    environment = RiverSwimReferenceEnvironment(
+        environment_config,
+        observation_spec=adapter.manifest.observation_spec,  # type: ignore[attr-defined]
+        action_spec=adapter.manifest.action_spec,  # type: ignore[attr-defined]
+        executor_id="asi.riverswim.executor",
+        executor_epoch="asi.riverswim.executor_epoch.1",
+    )
+    bound_oracle = environment.manifest.config["oracle_average_reward"]
+    assert bound_oracle == canonical_riverswim_oracle_average_reward(
+        RiverSwimMDP(environment_config)
+    )
+
+    real_optimal_average_reward = RiverSwimMDP.optimal_average_reward
+
+    for observed_raw in (majority_raw, minority_raw):
+
+        def constant_oracle(self: RiverSwimMDP, _observed: float = observed_raw) -> float:
+            return _observed
+
+        monkeypatch.setattr(RiverSwimMDP, "optimal_average_reward", constant_oracle)
+        try:
+            projected = canonical_riverswim_oracle_average_reward(
+                RiverSwimMDP(environment_config)
+            )
+        finally:
+            monkeypatch.setattr(
+                RiverSwimMDP, "optimal_average_reward", real_optimal_average_reward
+            )
+        assert projected == bound_oracle
