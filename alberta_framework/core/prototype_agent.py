@@ -267,6 +267,11 @@ def feature_to_subtask_specs(
 
 _INT32_MAX = 2**31 - 1
 _UINT32_MAX = 4_294_967_295
+# n_dreams_per_step drives jnp.arange inside a lax.scan; an INT32-legal value
+# hangs or exhausts memory long before any dream executes. Cap at the same
+# 10,000-step ceiling core.dreaming fixed for the sibling rollout horizon;
+# the public last-fit is 4 dreams per step.
+_N_DREAMS_PER_STEP_MAX = 10_000
 _ACTUAL_INT_TYPES: tuple[type, ...] = (int, *(np.dtype(code).type for code in "bBhHiIlLqQpP"))
 _ACTUAL_FLOAT_TYPES: tuple[type, ...] = (
     float,
@@ -593,6 +598,8 @@ class PrototypeAgentConfig:
         buffer_capacity: Number of real observations retained as dream anchors.
         n_dreams_per_step: Dyna-style imagined transitions per real step.
             Zero disables dreaming even when a world model is configured.
+            Capped at 10,000: the value drives a ``lax.scan`` length, and
+            INT32-legal values above the cap hang or exhaust memory.
         dream_next_observation_mode: How a model-predicted next observation is
             exposed to the base-Q learner. ``"model_prediction"`` preserves
             the regression output. ``"sample_one_hot"`` clips its coordinates
@@ -719,7 +726,7 @@ class PrototypeAgentConfig:
                 "n_dreams_per_step",
                 self.n_dreams_per_step,
                 minimum=0,
-                maximum=_INT32_MAX,
+                maximum=_N_DREAMS_PER_STEP_MAX,
             ),
         )
         # horde_hidden_sizes: hostile-safe per-element validation
@@ -1329,7 +1336,10 @@ class PrototypeAgentConfig:
             "buffer_capacity", data.pop("buffer_capacity", 200), minimum=1, maximum=_INT32_MAX
         )
         n_dreams_per_step = _require_int(
-            "n_dreams_per_step", data.pop("n_dreams_per_step", 0), minimum=0, maximum=_INT32_MAX
+            "n_dreams_per_step",
+            data.pop("n_dreams_per_step", 0),
+            minimum=0,
+            maximum=_N_DREAMS_PER_STEP_MAX,
         )
         dream_next_observation_mode = data.pop(
             "dream_next_observation_mode",

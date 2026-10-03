@@ -287,6 +287,31 @@ def test_prototype_agent_requires_exact_config_type() -> None:
         PrototypeAgent(derived)
 
 
+def test_n_dreams_per_step_scan_ceiling_rejects_oversized_values() -> None:
+    # n_dreams_per_step drives a jnp.arange lax.scan length; an INT32-legal
+    # value hangs or exhausts memory long before any dream executes (#2441).
+    # The ceiling matches the core.dreaming rollout-horizon budget (10,000).
+    # A world model is configured so the ceiling is the only rejection path.
+    with pytest.raises(ValueError, match="n_dreams_per_step must be <= 10000"):
+        _cfg(n_dreams_per_step=10_001, world_model=_world_model(4))
+    with pytest.raises(ValueError, match="n_dreams_per_step must be <= 10000"):
+        _cfg(n_dreams_per_step=_INT32_MAX, world_model=_world_model(4))
+
+
+def test_n_dreams_per_step_last_fit_value_is_accepted() -> None:
+    # The public last-fit is 4 dreams per step; the ceiling leaves three
+    # orders of magnitude of headroom and needs a configured world model.
+    cfg = _cfg(n_dreams_per_step=10_000, world_model=_world_model(4))
+    assert cfg.n_dreams_per_step == 10_000
+
+
+def test_from_config_rejects_oversized_serialized_n_dreams() -> None:
+    payload = _cfg(n_dreams_per_step=4, world_model=_world_model(4)).to_config()
+    payload["n_dreams_per_step"] = _INT32_MAX
+    with pytest.raises(ValueError, match="n_dreams_per_step must be <= 10000"):
+        PrototypeAgentConfig.from_config(payload)
+
+
 def test_prototype_valid_construction() -> None:
     cfg = _cfg(
         oak=_oak(obs_dim=4),
