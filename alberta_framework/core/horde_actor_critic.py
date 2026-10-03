@@ -86,6 +86,10 @@ def _require_int32(name: str, value: object, *, minimum: int, maximum: int = _IN
 def _validate_hidden_sizes(sizes: object) -> tuple[int, ...]:
     if type(sizes) is not tuple:
         raise ValueError("hidden_sizes must be an actual tuple")
+    if len(sizes) > _MAX_HIDDEN_SIZES:
+        raise ValueError(
+            f"hidden_sizes length must be an integer in [0, {_MAX_HIDDEN_SIZES}]"
+        )
     return tuple(
         _require_int32(f"hidden_sizes[{index}]", size, minimum=1)
         for index, size in enumerate(sizes)
@@ -132,6 +136,13 @@ def _check_actor_resources(resources: dict[str, int]) -> dict[str, int]:
 # ``run_nonlinear_horde_actor_critic_from_arrays`` hand straight to
 # ``jax.lax.scan``.
 _HORDE_AC_SEQUENCE_MAX_STEPS = 10_000
+
+# Serialized-sequence cardinality ceiling, matching the merged house bounds
+# (working-memory decay lists #2220, stacked-horde demons, UPGD-memory and
+# world-model hidden sizes, ``types._MAX_HORDE_DEMONS``): a hostile or
+# mistaken multi-million-entry payload must be rejected by cardinality before
+# the payload is copied and before any per-element walk runs.
+_MAX_HIDDEN_SIZES = 1 << 12
 
 
 def _require_horde_ac_sequence_length(name: str, value: object) -> int:
@@ -1493,6 +1504,11 @@ class NonlinearHordeActorCriticConfig:
         )
         if type(c["hidden_sizes"]) is not list:
             raise ValueError("serialized hidden_sizes must be an exact built-in list")
+        if len(c["hidden_sizes"]) > _MAX_HIDDEN_SIZES:
+            raise ValueError(
+                "serialized hidden_sizes length must be an integer in "
+                f"[0, {_MAX_HIDDEN_SIZES}]"
+            )
         c["hidden_sizes"] = tuple(c["hidden_sizes"])
         return cls(**c)
 
@@ -2271,6 +2287,11 @@ class NonlinearQHordeActorCriticConfig:
         )
         if type(payload["hidden_sizes"]) is not list:
             raise ValueError("serialized hidden_sizes must be an exact built-in list")
+        if len(payload["hidden_sizes"]) > _MAX_HIDDEN_SIZES:
+            raise ValueError(
+                "serialized hidden_sizes length must be an integer in "
+                f"[0, {_MAX_HIDDEN_SIZES}]"
+            )
         payload["hidden_sizes"] = tuple(payload["hidden_sizes"])
         return cls(**payload)
 
