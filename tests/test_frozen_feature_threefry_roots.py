@@ -77,7 +77,12 @@ def test_frozen_feature_root_is_unchanged_under_default_ambient() -> None:
     """The explicit-impl root stays byte-identical to the historical default."""
     params = init_mlp_params(jr.key(7), _SMALL)
     bits = jax.lax.bitcast_convert_type(params["w1"].reshape(-1), jnp.uint32)
-    historical = jr.fold_in(jr.fold_in(jr.key(jnp.uint32(_RANPAC_DOMAIN)), bits[0]), bits[-1])
+    historical = jr.fold_in(
+        jr.fold_in(
+            jr.key(jnp.uint32(_RANPAC_DOMAIN), impl="threefry2x32"), bits[0]
+        ),
+        bits[-1],
+    )
     pinned = _key_from_params(params, _RANPAC_DOMAIN)
     np.testing.assert_array_equal(
         jax.device_get(jr.key_data(historical)), jax.device_get(jr.key_data(pinned))
