@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 from typing import Any
 
 import jax.numpy as jnp
@@ -10,6 +11,8 @@ import jax.random as jr
 import numpy as np
 import pytest
 
+from alberta_framework import reference_life as reference_life_module
+from alberta_framework.benchmarks.reference_life_scorecard import build_development_plan
 from alberta_framework.core.oak import OaKConfig
 from alberta_framework.core.options import STOMPConfig
 from alberta_framework.core.prototype_agent import PrototypeAgentConfig
@@ -28,6 +31,11 @@ from alberta_framework.reference_life import (
     ReferenceEnvironmentExecution,
     RiverSwimReferenceEnvironment,
     build_prototype_riverswim_life,
+    canonical_riverswim_oracle_average_reward,
+)
+from alberta_framework.reference_life_controls import (
+    UniformRandomReferenceAdapter,
+    UniformRandomReferenceConfig,
 )
 from alberta_framework.streams.closed_loop import RiverSwimConfig, RiverSwimMDP
 
@@ -355,3 +363,94 @@ def test_riverswim_reference_life_runs_five_keyed_events_without_extra_dispatch(
     )
     with pytest.raises(DecisionOwnershipError, match="completed"):
         runner.step(state)
+
+
+def test_environment_identity_is_stable_under_stationary_solver_last_ulp_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One ulp of LAPACK drift must not move the bound environment identity.
+
+    ``RiverSwimMDP.optimal_average_reward`` resolves the stationary system
+    through ``numpy.linalg.lstsq``, whose least significant bits depend on the
+    host's LAPACK/BLAS kernel. The reference-life manifest, its config digest,
+    and the scorecard's canonical ``resolved`` binding compare these values
+    bitwise across fresh processes, so a kernel-dependent last ulp flips
+    manifest identities and rejects valid shard records at aggregation:
+    run 34950746882 recorded two distinct oracle values across identical
+    RiverSwim shards and its aggregate job rejected every minority record.
+    The bound identity must come from a canonical value instead of
+    re-exposing solver noise. The environment here is built from the
+    scorecard's own ``riverswim`` protocol (``n_states=6``) — the exact
+    config whose CI shards split.
+
+    The drift is a last-ulp additive term on one ``lstsq`` component — the
+    smallest disagreement a real kernel change produces, and one that
+    survives the solver's clip and renormalization. A *relative* rescale is
+    the wrong probe: the solver rescales its own result, so a uniform
+    relative factor divides out before it can reach the oracle, and the
+    identity test then passes even with the canonical binding reverted.
+    """
+    plan = build_development_plan()
+    protocol = plan.protocol("riverswim")
+    environment_config = RiverSwimConfig(  # type: ignore[call-arg]
+        n_states=protocol["n_states"],
+        p_right_up=protocol["p_right_up"],
+        p_right_down=protocol["p_right_down"],
+        reward_left=protocol["reward_left"],
+        reward_right=protocol["reward_right"],
+        initial_state=protocol["initial_state"],
+    )
+    adapter = UniformRandomReferenceAdapter(
+        UniformRandomReferenceConfig.for_riverswim(environment_config)
+    )
+    manifest = adapter.manifest  # type: ignore[attr-defined]
+
+    def build() -> RiverSwimReferenceEnvironment:
+        return RiverSwimReferenceEnvironment(
+            environment_config,
+            observation_spec=manifest.observation_spec,
+            action_spec=manifest.action_spec,
+            executor_id="asi.riverswim.executor",
+            executor_epoch="asi.riverswim.executor_epoch.1",
+        )
+
+    baseline = build()
+
+    # The additive perturbation must reach the raw oracle (exactly one ulp)
+    # while the lattice projection absorbs it bitwise; otherwise this test's
+    # premise would not model the recorded cross-kernel split.
+    probe = RiverSwimMDP(environment_config)
+    unperturbed_raw = probe.optimal_average_reward()
+    bound_oracle = canonical_riverswim_oracle_average_reward(probe)
+
+    real_lstsq = np.linalg.lstsq
+
+    def drifted_lstsq(*args: Any, **kwargs: Any) -> Any:
+        """Return the LAPACK solution with a last-ulp additive term."""
+        solution, residuals, rank, singular_values = real_lstsq(*args, **kwargs)
+        nudged = np.array(solution, copy=True)
+        nudged[0] += 1e-16
+        return nudged, residuals, rank, singular_values
+
+    monkeypatch.setattr(np.linalg, "lstsq", drifted_lstsq)
+    perturbed_raw = probe.optimal_average_reward()
+    assert perturbed_raw != unperturbed_raw
+    one_ulp = math.ulp(unperturbed_raw)
+    assert abs(perturbed_raw - unperturbed_raw) == one_ulp
+    assert canonical_riverswim_oracle_average_reward(probe) == bound_oracle
+
+    drifted = build()
+    assert drifted.manifest.descriptor() == baseline.manifest.descriptor()
+
+    # Mutation check: the constructor-side canonical binding is load-bearing.
+    # The constructor resolves the projection from the ``reference_life``
+    # module namespace, so bypassing it there — with the one-ulp kernel
+    # difference still live — must move the manifest identity again.
+    with monkeypatch.context() as context:
+        context.setattr(
+            reference_life_module,
+            "canonical_riverswim_oracle_average_reward",
+            lambda river: river.optimal_average_reward(),
+        )
+        reverted = build()
+        assert reverted.manifest.descriptor() != baseline.manifest.descriptor()

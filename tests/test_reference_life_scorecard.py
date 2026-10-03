@@ -16,6 +16,7 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
+from alberta_framework import reference_life as reference_life_module
 from alberta_framework.benchmarks import reference_life_scorecard as scorecard
 from alberta_framework.benchmarks.reference_life_scorecard import (
     ARM_ROSTER,
@@ -30,11 +31,18 @@ from alberta_framework.benchmarks.reference_life_scorecard import (
     write_new_json,
 )
 from alberta_framework.reference_agent import ArrayValue
+from alberta_framework.reference_life import (
+    canonical_riverswim_oracle_average_reward,
+)
 from alberta_framework.reference_life_controls import (
     DifferentialSARSAReferenceConfig,
     DiscountedSARSAReferenceConfig,
 )
-from alberta_framework.streams.closed_loop import SwitchingTwoStateConfig
+from alberta_framework.streams.closed_loop import (
+    RiverSwimConfig,
+    RiverSwimMDP,
+    SwitchingTwoStateConfig,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -1108,3 +1116,252 @@ def test_validate_cli_accepts_the_canonical_plan(
     result = json.loads(capsys.readouterr().out)
     assert result["valid"] is True
     assert result["evidence_policy"]["permanently_nonpromoting"] is True
+
+
+def test_resolved_components_are_stable_under_stationary_solver_last_ulp_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Canonical resolved components must not depend on LAPACK kernel noise.
+
+    The aggregate validator rebuilds one runner per shard record and compares
+    ``$.resolved`` bitwise against the record. ``RiverSwimMDP`` resolves its
+    stationary oracle through ``numpy.linalg.lstsq``, so a runner built on a
+    different host's LAPACK kernel produced digests that reject records from
+    another kernel (run 34950746882: all 144 shard jobs validated their own
+    records; the aggregate rejected the minority-kernel RiverSwim records).
+    The environment binds a lattice-canonical oracle value, so this
+    comparison must hold even when the kernel perturbs the stationary
+    solution by a last-ulp additive term on one component — measured on this
+    protocol config (``n_states=6``) to move the raw float64 oracle by
+    exactly one ulp while the bound lattice value stays bitwise equal.
+
+    A *relative* rescale of the solution is the wrong probe here: the solver
+    rescales its own result (``clip`` then ``distribution /
+    distribution.sum()``), so a uniform relative factor divides out and the
+    drift never reaches the oracle — under that probe this test passed even
+    with the canonical binding reverted, guarding nothing.
+    """
+    plan = build_development_plan()
+    spec = next(
+        entry
+        for entry in scorecard.iter_run_specs(plan)
+        if entry.environment_kind == "riverswim" and entry.arm == "prototype"
+    )
+
+    baseline = scorecard._resolved_components(
+        plan, spec, scorecard.build_scorecard_runner(plan, spec)
+    )
+
+    real_lstsq = np.linalg.lstsq
+
+    def drifted_lstsq(*args: Any, **kwargs: Any) -> Any:
+        """Return the LAPACK solution with a last-ulp additive term.
+
+        One component receives ``+1e-16``, the scale of a real kernel's
+        last-ulp disagreement on this protocol's stationary distribution; it
+        survives the solver's clip and renormalization and reaches the
+        oracle's least significant bit.
+        """
+        solution, residuals, rank, singular_values = real_lstsq(*args, **kwargs)
+        nudged = np.array(solution, copy=True)
+        nudged[0] += 1e-16
+        return nudged, residuals, rank, singular_values
+
+    monkeypatch.setattr(np.linalg, "lstsq", drifted_lstsq)
+    drifted = scorecard._resolved_components(
+        plan, spec, scorecard.build_scorecard_runner(plan, spec)
+    )
+
+    assert scorecard._json_exact_equal(drifted, baseline)
+
+    # Mutation check: the constructor-side binding is load-bearing. The
+    # constructor resolves the canonical projection from the ``reference_life``
+    # module namespace, so reverting it there (not the scorecard symbol, which
+    # only the validators consult) with the one-ulp kernel difference live
+    # reaches the bound manifest digest and the resolutions stop matching.
+    with monkeypatch.context() as context:
+        context.setattr(
+            reference_life_module,
+            "canonical_riverswim_oracle_average_reward",
+            lambda river: river.optimal_average_reward(),
+        )
+        reverted = scorecard._resolved_components(
+            plan, spec, scorecard.build_scorecard_runner(plan, spec)
+        )
+        assert not scorecard._json_exact_equal(reverted, baseline)
+
+
+def _riverswim_prototype_spec() -> tuple[
+    ReferenceLifeDevelopmentPlan, scorecard.ScorecardRunSpec
+]:
+    plan = build_development_plan()
+    spec = next(
+        entry
+        for entry in scorecard.iter_run_specs(plan)
+        if entry.environment_kind == "riverswim" and entry.arm == "prototype"
+    )
+    return plan, spec
+
+
+def _canonical_riverswim_oracle(protocol: dict[str, Any]) -> float:
+    river = RiverSwimMDP(
+        RiverSwimConfig(  # type: ignore[call-arg]
+            n_states=protocol["n_states"],
+            p_right_up=protocol["p_right_up"],
+            p_right_down=protocol["p_right_down"],
+            reward_left=protocol["reward_left"],
+            reward_right=protocol["reward_right"],
+            initial_state=protocol["initial_state"],
+        )
+    )
+    return canonical_riverswim_oracle_average_reward(river)
+
+
+def _failed_riverswim_partial_record(
+    plan: ReferenceLifeDevelopmentPlan,
+    spec: scorecard.ScorecardRunSpec,
+) -> dict[str, Any]:
+    """A cleanly validating one-event failed shard for the RiverSwim lane.
+
+    The partial payload binds every solver-derived number (``oracle_reward_sum``,
+    ``regret_sum``, and the early window's ``mean_oracle_regret``) to the same
+    lattice-canonical oracle the validators recompute, so the record is valid
+    only while both oracle substitutions are live.
+    """
+    record = _completed_record(plan, spec)
+    protocol = plan.protocol(spec.environment_kind)
+    horizon = protocol["horizon"]
+    oracle = _canonical_riverswim_oracle(protocol)
+    window = {
+        "event_count": 1,
+        "reward_sum": 0.0,
+        "mean_reward": 0.0,
+        "mean_oracle_regret": oracle,
+    }
+    record.update(
+        {
+            "status": "failed",
+            "failure": {
+                "stage": "step",
+                "type": "RuntimeError",
+                "message": "synthetic post-step failure",
+                "accepted_events": 1,
+            },
+            "outcome": None,
+            "partial_outcome": {
+                "summary_mode": "streaming_o1_no_retained_events",
+                "configured_horizon": horizon,
+                "accepted_events": 1,
+                "reward_sum": 0.0,
+                "mean_reward": 0.0,
+                "oracle_reward_sum": oracle,
+                "regret_sum": oracle,
+                "parameter_change_events": 0,
+                "phase_event_counts": [1, 0],
+                "phase_reward_sums": [0.0, 0.0],
+                "windows": {"early": window, "late": None},
+                "high_end_visit_count": 0,
+                "high_end_visit_rate": 0.0,
+            },
+        }
+    )
+    record["telemetry"].update(
+        {
+            "warmed_step_seconds_total": 0.0,
+            "warmed_step_count": 0,
+            "warmed_step_seconds_mean": None,
+        }
+    )
+    _redigest(record)
+    return record
+
+
+def test_outcome_validators_stay_kernel_independent_through_the_canonical_oracle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Both outcome validators must accept solver noise the binding absorbs.
+
+    ``_validate_completed_outcome`` and ``_validate_partial_outcome`` recompute
+    the RiverSwim oracle through ``canonical_riverswim_oracle_average_reward``
+    and compare it against record regrets with a 1e-12 tolerance. Reverting
+    either substitution re-exposes the LAPACK kernel's last ulp, so a valid
+    record from another kernel is rejected (run 34950746882). The drift here
+    is a last-ulp additive term on one ``lstsq`` component — the same
+    perturbation measured to move the raw float64 oracle by exactly one ulp
+    on this protocol config — which the lattice projection absorbs bitwise.
+
+    A *relative* rescale of the solution would guard nothing: the solver
+    rescales its own result (``clip`` then ``distribution /
+    distribution.sum()``), so a uniform relative factor divides out before it
+    can reach the oracle.
+    """
+    plan, spec = _riverswim_prototype_spec()
+    completed = _completed_record(plan, spec)
+    partial = _failed_riverswim_partial_record(plan, spec)
+    protocol = plan.protocol(spec.environment_kind)
+    oracle = _canonical_riverswim_oracle(protocol)
+
+    assert scorecard.validate_scorecard_run_record(completed)["valid"] is True
+    assert scorecard.validate_scorecard_run_record(partial)["valid"] is True
+
+    real_lstsq = np.linalg.lstsq
+
+    def drifted_lstsq(*args: Any, **kwargs: Any) -> Any:
+        solution, residuals, rank, singular_values = real_lstsq(*args, **kwargs)
+        nudged = np.array(solution, copy=True)
+        nudged[0] += 1e-16
+        return nudged, residuals, rank, singular_values
+
+    monkeypatch.setattr(np.linalg, "lstsq", drifted_lstsq)
+
+    # The lattice projection must absorb this drift exactly; if the canonical
+    # value moved, this test's premise (and the record identity) would break.
+    assert _canonical_riverswim_oracle(protocol) == oracle
+
+    assert scorecard.validate_scorecard_run_record(completed)["valid"] is True
+    assert scorecard.validate_scorecard_run_record(partial)["valid"] is True
+
+
+@pytest.mark.parametrize("record_kind", ["completed", "partial"])
+def test_outcome_validators_reject_records_once_the_canonical_binding_is_reverted(
+    monkeypatch: pytest.MonkeyPatch,
+    record_kind: str,
+) -> None:
+    """Mutation check: each validator needs its canonical-oracle substitution.
+
+    Bypassing ``canonical_riverswim_oracle_average_reward`` re-exposes the
+    raw stationary solve, so the validator's recomputed oracle departs from
+    the record's stored regrets and the otherwise-valid record must be
+    rejected. Applying the patch to one validator at a time proves both call
+    sites (``_validate_completed_outcome`` and ``_validate_partial_outcome``)
+    are individually load-bearing.
+
+    The rejection here is driven by the stored lattice-canonical value
+    differing from the raw float64 oracle by about 4.5e-9, far above the
+    1e-12 regret tolerance; the last-ulp additive kernel drift stacked on top
+    (one component ``+1e-16``, measured to move the raw oracle by exactly one
+    ulp) models the cross-kernel disagreement the binding exists to absorb.
+    """
+    plan, spec = _riverswim_prototype_spec()
+    records = {
+        "completed": _completed_record(plan, spec),
+        "partial": _failed_riverswim_partial_record(plan, spec),
+    }
+
+    real_lstsq = np.linalg.lstsq
+
+    def drifted_lstsq(*args: Any, **kwargs: Any) -> Any:
+        solution, residuals, rank, singular_values = real_lstsq(*args, **kwargs)
+        nudged = np.array(solution, copy=True)
+        nudged[0] += 1e-16
+        return nudged, residuals, rank, singular_values
+
+    monkeypatch.setattr(np.linalg, "lstsq", drifted_lstsq)
+    monkeypatch.setattr(
+        scorecard,
+        "canonical_riverswim_oracle_average_reward",
+        lambda river: river.optimal_average_reward(),
+    )
+
+    with pytest.raises(ValueError, match="mean_oracle_regret is inconsistent"):
+        scorecard.validate_scorecard_run_record(records[record_kind])

@@ -1194,6 +1194,24 @@ class _ImmutableRiverSwimMDP(RiverSwimMDP):
         object.__delattr__(self, name)
 
 
+def canonical_riverswim_oracle_average_reward(river: RiverSwimMDP) -> float:
+    """Project the exact RiverSwim oracle gain onto the float32 reward lattice.
+
+    ``RiverSwimMDP.optimal_average_reward`` resolves each candidate policy's
+    stationary system through ``numpy.linalg.lstsq`` (LAPACK), so its least
+    significant bits depend on the host's LAPACK/BLAS kernel. The development
+    scorecard and the checkpoint resume gate bind manifest digests and metric
+    expectations to this value bitwise across fresh processes, and a
+    kernel-dependent last ulp flips those identities: CI run 34950746882
+    recorded two distinct oracle values across identical RiverSwim shards
+    (46 versus 72 kernels) and its aggregate job rejected every minority
+    record. Rounding the gain to the same float32 lattice as the rewards it
+    averages is an exact, host-stable projection whose resolution sits about
+    nine decimal orders above the observed kernel noise.
+    """
+    return float(np.float32(river.optimal_average_reward()))
+
+
 class RiverSwimReferenceEnvironment:
     """Strict keyed codec/executor wrapper for the stochastic RiverSwim MDP."""
 
@@ -1276,7 +1294,7 @@ class RiverSwimReferenceEnvironment:
             initial_state=initial_state,
         )
         environment = _ImmutableRiverSwimMDP(canonical_config)
-        oracle_reward = environment.optimal_average_reward()
+        oracle_reward = canonical_riverswim_oracle_average_reward(environment)
         if not math.isfinite(oracle_reward):
             raise ValueError("RiverSwim exact stationary oracle must be finite")
         self._environment = environment
@@ -3579,4 +3597,5 @@ __all__ = [
     "SwitchingTwoStateReferenceEnvironment",
     "build_prototype_riverswim_life",
     "build_prototype_switching_life",
+    "canonical_riverswim_oracle_average_reward",
 ]
