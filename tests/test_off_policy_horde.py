@@ -15,7 +15,14 @@ from alberta_framework.core.off_policy_horde import (
     run_off_policy_horde_learning_loop,
 )
 from alberta_framework.core.optimizers import LMS, ObGDBounding
-from alberta_framework.core.types import DemonType, GVFSpec, HordeSpec, TraceMode, create_horde_spec
+from alberta_framework.core.types import (
+    _MAX_HORDE_DEMONS,
+    DemonType,
+    GVFSpec,
+    HordeSpec,
+    TraceMode,
+    create_horde_spec,
+)
 
 
 def _spec(
@@ -684,6 +691,34 @@ def test_nonlinear_shared_gtd_horde_complete_scalar_and_schema_contract() -> Non
         NonlinearSharedGTDHordeLearner.from_config({**config, "unknown": 1})
     with pytest.raises(ValueError, match="type"):
         NonlinearSharedGTDHordeLearner.from_config({**config, "type": "wrong"})
+
+
+def test_nonlinear_shared_gtd_horde_from_config_bounds_demon_list_before_walking() -> None:
+    """Oversized serialized demon lists are rejected before any element is read.
+
+    ``NonlinearSharedGTDHordeLearner.from_config`` walks ``horde_spec.demons``
+    element by element (exact per-entry dict-schema and scalar-type checks) and
+    only reaches the bounded ``HordeSpec.from_config`` afterwards. A
+    multi-million-entry payload therefore costs minutes of pure-Python walking
+    plus the matching dict memory inside the deserialization boundary, and the
+    house serialized-sequence ceiling (cf. #2225, ``types._MAX_HORDE_DEMONS``)
+    never gets a chance to fire. The bound must precede the first element,
+    including when every element is schema-invalid.
+    """
+
+    learner = NonlinearSharedGTDHordeLearner(_spec(), hidden_size=2)
+    config = learner.to_config()
+
+    schema_invalid = dict(config)
+    schema_invalid["horde_spec"] = {"demons": [{"name": 1}] * (_MAX_HORDE_DEMONS + 1)}
+    with pytest.raises(ValueError, match=f"at most {_MAX_HORDE_DEMONS}"):
+        NonlinearSharedGTDHordeLearner.from_config(schema_invalid)
+
+    valid_demon = config["horde_spec"]["demons"][0]
+    oversized_valid = dict(config)
+    oversized_valid["horde_spec"] = {"demons": [valid_demon] * (_MAX_HORDE_DEMONS + 1)}
+    with pytest.raises(ValueError, match=f"at most {_MAX_HORDE_DEMONS}"):
+        NonlinearSharedGTDHordeLearner.from_config(oversized_valid)
 
 
 def test_nonlinear_shared_gtd_horde_preflights_aggregate_state_bytes() -> None:

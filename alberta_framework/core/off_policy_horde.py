@@ -41,7 +41,12 @@ from alberta_framework.core.normalizers import (
     _saturating_int32_counter_increment,
 )
 from alberta_framework.core.optimizers import LMS, Bounder
-from alberta_framework.core.types import HordeSpec, MLPParams, TraceMode
+from alberta_framework.core.types import (
+    _MAX_HORDE_DEMONS,
+    HordeSpec,
+    MLPParams,
+    TraceMode,
+)
 from alberta_framework.core.update_safety import (
     floating_tree_is_finite as _floating_tree_is_finite,
 )
@@ -1145,6 +1150,10 @@ class NonlinearSharedGTDHordeLearner:
             raise ValueError("serialized horde_spec does not match its schema")
         if type(raw_horde["demons"]) is not list:
             raise ValueError("serialized horde_spec demons must be an exact list")
+        if len(raw_horde["demons"]) > _MAX_HORDE_DEMONS:
+            raise ValueError(
+                f"demons must contain at most {_MAX_HORDE_DEMONS} GVFSpec entries"
+            )
         demon_fields = {
             "name",
             "demon_type",
