@@ -34,7 +34,11 @@ import numpy as np
 from jax import Array
 from jaxtyping import Float, Int
 
-from alberta_framework._scan_resources import ScanBudget, require_scan_steps
+from alberta_framework._scan_resources import (
+    SCAN_SEQUENCE_MAX_STEPS,
+    ScanBudget,
+    require_scan_steps,
+)
 from alberta_framework.core._float32_scalars import validated_float32_scalar_with_ratio
 from alberta_framework.core.behavior_model import (
     BehaviorModel,
@@ -54,7 +58,7 @@ from alberta_framework.core.world_model import (
 _INT32_MAX = 2**31 - 1
 # Public last-fit in tests is rollout_horizon=5. Origin handed large
 # horizons to jnp.arange with no last-fit reject — hang/OOM, not INT32 leftover.
-_DREAM_ROLLOUT_BUDGET = ScanBudget("dream rollout", maximum_steps=10_000)
+_DREAM_ROLLOUT_BUDGET = ScanBudget("dream rollout", maximum_steps=SCAN_SEQUENCE_MAX_STEPS)
 _DREAM_ROLLOUT_MAX_HORIZON = _DREAM_ROLLOUT_BUDGET.maximum_steps
 _ACTUAL_INT_TYPES: frozenset[type] = frozenset(
     {int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")}

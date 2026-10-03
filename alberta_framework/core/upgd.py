@@ -50,6 +50,7 @@ from jax import Array
 from jaxtyping import Float
 
 from alberta_framework._scan_resources import (
+    SCAN_SEQUENCE_MAX_STEPS,
     ScanBudget,
     require_jax_leading_length,
     require_matching_jax_leading_length,
@@ -76,7 +77,7 @@ def _require_exact_str(name: object, value: object) -> str:
 _INT32_MAX = 2**31 - 1
 # Public last-fit in tests is 5_000 array steps / 50 stream steps. Origin handed
 # ``10**12`` to ``jnp.arange`` with no reject — hang/OOM, not an INT32 leftover.
-_UPGD_LOOP_MAX_STEPS = 10_000
+_UPGD_LOOP_MAX_STEPS = SCAN_SEQUENCE_MAX_STEPS
 _UPGD_LOOP_BUDGET = ScanBudget("UPGD learning-loop", _UPGD_LOOP_MAX_STEPS)
 _ACTUAL_INT_TYPES: frozenset[type] = frozenset(
     {int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")}

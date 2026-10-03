@@ -11,6 +11,21 @@ from dataclasses import dataclass
 
 import jax
 
+SCAN_SEQUENCE_MAX_STEPS: int = 10_000
+"""Program-wide ceiling for one host-declared scan/``arange`` sequence.
+
+Every per-module scan-sequence bound that rejects an oversized leading axis
+before ``jnp.arange``/``jax.lax.scan`` traces derives from this constant, so
+there is exactly one place to widen it deliberately.  The value is the
+public last-fit across the retained suites (largest documented program:
+10,000 steps); before it was canonical here it was duplicated as private
+per-module literals.  The hang/OOM reports that established the class are
+#2124, #2128, and #2441: an ``INT32_MAX``-legal config value must fail in
+validation, not trace a multi-terabyte or unbounded scan.  A module may
+declare a *smaller* budget for its own documented program, but must not
+widen this ceiling locally.
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class ScanBudget:

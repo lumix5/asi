@@ -44,6 +44,7 @@ import numpy as np
 from jax import Array
 from jaxtyping import Bool, Float, Int
 
+from alberta_framework._scan_resources import SCAN_SEQUENCE_MAX_STEPS
 from alberta_framework.core._float32_scalars import validated_float32_scalar
 from alberta_framework.core.horde import HordeLearner, HordeUpdateResult
 from alberta_framework.core.initializers import sparse_init
@@ -131,7 +132,7 @@ def _check_actor_resources(resources: dict[str, int]) -> dict[str, int]:
 # bounding the leading axis that ``run_horde_actor_critic_from_arrays`` and
 # ``run_nonlinear_horde_actor_critic_from_arrays`` hand straight to
 # ``jax.lax.scan``.
-_HORDE_AC_SEQUENCE_MAX_STEPS = 10_000
+_HORDE_AC_SEQUENCE_MAX_STEPS = SCAN_SEQUENCE_MAX_STEPS
 
 
 def _require_horde_ac_sequence_length(name: str, value: object) -> int:

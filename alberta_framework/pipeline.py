@@ -37,7 +37,11 @@ import jax.random as jr
 import numpy as np
 from jax import Array
 
-from alberta_framework._scan_resources import ScanBudget, require_scan_steps
+from alberta_framework._scan_resources import (
+    SCAN_SEQUENCE_MAX_STEPS,
+    ScanBudget,
+    require_scan_steps,
+)
 from alberta_framework._seed_validation import require_jax_seed
 from alberta_framework.core.associative_memory import (
     AssociativeFeatureFamily,
@@ -100,7 +104,7 @@ _INT32_MAX: int = 2**31 - 1
 _MAX_CONFIG_SEQUENCE_LENGTH: int = 4096
 # Public last-fit in tests is run_arrays length 2 and smoke steps=8.
 # Origin scanned INT32-legal array lengths — hang, not leftover INT32 math.
-_PIPELINE_SCAN_BUDGET = ScanBudget("Step 1-4 pipeline", maximum_steps=10_000)
+_PIPELINE_SCAN_BUDGET = ScanBudget("Step 1-4 pipeline", maximum_steps=SCAN_SEQUENCE_MAX_STEPS)
 _PIPELINE_SCAN_MAX: int = _PIPELINE_SCAN_BUDGET.maximum_steps
 
 _ACTUAL_INT_TYPES: tuple[type, ...] = (int, *(np.dtype(code).type for code in "bBhHiIlLqQpP"))

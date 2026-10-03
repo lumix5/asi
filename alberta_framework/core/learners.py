@@ -32,7 +32,12 @@ import numpy as np
 from jax import Array
 from jaxtyping import Bool, Float
 
-from alberta_framework._scan_resources import ScanBudget, require_scan_steps, require_step_units
+from alberta_framework._scan_resources import (
+    SCAN_SEQUENCE_MAX_STEPS,
+    ScanBudget,
+    require_scan_steps,
+    require_step_units,
+)
 from alberta_framework.core._float32_scalars import (
     validated_float32_scalar,
     validated_float32_scalar_with_ratio,
@@ -87,7 +92,7 @@ _INT32_MAX = 2**31 - 1
 _MAX_RESOURCE_BYTES = 256 * 1024 * 1024
 # Documented public protocol: README / package ``__init__`` / loop docstrings
 # last-fit ``num_steps=10_000`` and batched ``30`` seeds. Not an INT32 cap.
-_LEARNING_LOOP_MAX_STEPS = 10_000
+_LEARNING_LOOP_MAX_STEPS = SCAN_SEQUENCE_MAX_STEPS
 _LEARNING_LOOP_MAX_SEEDS = 30
 _LEARNING_LOOP_MAX_SEED_STEPS = _LEARNING_LOOP_MAX_SEEDS * _LEARNING_LOOP_MAX_STEPS
 _LEARNING_LOOP_BUDGET = ScanBudget(

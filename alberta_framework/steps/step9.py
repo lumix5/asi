@@ -36,6 +36,7 @@ import jax.random as jr
 import numpy as np
 from jax import Array
 
+from alberta_framework._scan_resources import SCAN_SEQUENCE_MAX_STEPS
 from alberta_framework._seed_validation import require_jax_seed
 from alberta_framework.core.average_reward import (
     DifferentialSARSAAgent,
@@ -83,7 +84,7 @@ _MAX_DREAM_WORK_PER_REAL_STEP = 4_096
 # hanging the process well before any step executes. Step 9's per-step work
 # additionally includes model-based dreaming rollouts, so this module is at
 # least as exposed to the hang as its siblings.
-_STEP9_SEQUENCE_MAX_STEPS = 10_000
+_STEP9_SEQUENCE_MAX_STEPS = SCAN_SEQUENCE_MAX_STEPS
 _ACTUAL_INT_TYPES = frozenset({int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")})
 
 

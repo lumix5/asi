@@ -30,6 +30,9 @@ References
 - Streaming Deep Reinforcement Learning Finally Works (Elsayed et al., 2024)
 """
 __version__ = "0.29.0"
+# Shared scan resource contract (canonical host-side scan ceiling)
+from alberta_framework._scan_resources import SCAN_SEQUENCE_MAX_STEPS
+
 # Baseline optimizers
 from alberta_framework.core.actor_critic import (
     ActorCriticAgent,
@@ -1675,6 +1678,8 @@ __all__ = [
     # Timing
     "Timer",
     "format_duration",
+    # Shared scan resource contract
+    "SCAN_SEQUENCE_MAX_STEPS",
 ]
 __all__ += [
     "GymnasiumStream",

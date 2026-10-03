@@ -37,6 +37,7 @@ from jax import Array
 from jaxtyping import Bool, Float, Int, PRNGKeyArray
 
 from alberta_framework._scan_resources import (
+    SCAN_SEQUENCE_MAX_STEPS,
     ScanBudget,
     require_jax_leading_length,
     require_matching_jax_leading_length,
@@ -63,7 +64,7 @@ from alberta_framework.core.update_safety import (
 _INT32_MAX = 2**31 - 1
 # Public last-fit in tests is 600 array steps. Origin handed ``10**12`` to
 # ``jnp.arange`` with no reject — hang/OOM, not an INT32 leftover.
-_COMPOSITIONAL_LOOP_MAX_STEPS = 10_000
+_COMPOSITIONAL_LOOP_MAX_STEPS = SCAN_SEQUENCE_MAX_STEPS
 _COMPOSITIONAL_LOOP_BUDGET = ScanBudget(
     "compositional-feature learning-loop", _COMPOSITIONAL_LOOP_MAX_STEPS
 )

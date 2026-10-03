@@ -35,7 +35,11 @@ import numpy as np
 from jax import Array
 from jaxtyping import Bool, Float, Int, PRNGKeyArray
 
-from alberta_framework._scan_resources import ScanBudget, require_scan_steps
+from alberta_framework._scan_resources import (
+    SCAN_SEQUENCE_MAX_STEPS,
+    ScanBudget,
+    require_scan_steps,
+)
 from alberta_framework.core._float32_scalars import validated_float32_scalar_with_ratio
 from alberta_framework.core.future_utility import (
     bias_correct_future_utility,
@@ -56,7 +60,7 @@ _UINT32_MAX = 2**32 - 1
 _MAX_STATE_NBYTES = 256 * 1024 * 1024
 # README / package-init public scan last-fit. Origin handed ``10**12`` to
 # ``jnp.arange`` with no reject — hang/OOM, not an INT32 leftover.
-_FEATURE_DISCOVERY_LOOP_MAX_STEPS = 10_000
+_FEATURE_DISCOVERY_LOOP_MAX_STEPS = SCAN_SEQUENCE_MAX_STEPS
 _FEATURE_DISCOVERY_LOOP_BUDGET = ScanBudget(
     "feature-discovery learning-loop", _FEATURE_DISCOVERY_LOOP_MAX_STEPS
 )

@@ -36,7 +36,11 @@ import jax.random as jr
 import numpy as np
 from jax import Array
 
-from alberta_framework._scan_resources import ScanBudget, require_scan_steps
+from alberta_framework._scan_resources import (
+    SCAN_SEQUENCE_MAX_STEPS,
+    ScanBudget,
+    require_scan_steps,
+)
 from alberta_framework._seed_validation import require_jax_seed
 from alberta_framework.core.world_model import (
     OneStepWorldModel,
@@ -52,7 +56,7 @@ from alberta_framework.steps._float32_validation import (
 )
 from alberta_framework.steps._smoke_record_validation import require_step_shape
 
-_STEP8_SMOKE_BUDGET = ScanBudget("Step 8 smoke", maximum_steps=10_000)
+_STEP8_SMOKE_BUDGET = ScanBudget("Step 8 smoke", maximum_steps=SCAN_SEQUENCE_MAX_STEPS)
 
 
 @dataclass(frozen=True)

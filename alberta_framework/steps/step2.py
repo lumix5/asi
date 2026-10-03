@@ -31,7 +31,11 @@ import numpy as np
 from jax import Array
 
 from alberta_framework._float32 import round_real_to_float32_with_ratio
-from alberta_framework._scan_resources import ScanBudget, require_scan_steps
+from alberta_framework._scan_resources import (
+    SCAN_SEQUENCE_MAX_STEPS,
+    ScanBudget,
+    require_scan_steps,
+)
 from alberta_framework._seed_validation import require_jax_seed
 from alberta_framework.core.associative_memory import (
     AssociativeFeatureFamily,
@@ -137,7 +141,7 @@ _STEP2_ASSOCIATIVE_CONFIG_KEYS = frozenset(
 _INT32_MAX = 2**31 - 1
 # Public last-fit in tests is 128 smoke steps. Origin accepted INT32_MAX
 # and looped range(steps) with no last-fit reject — hang, not leftover INT32 math.
-_STEP2_LOOP_BUDGET = ScanBudget("Step 2 host loop", maximum_steps=10_000)
+_STEP2_LOOP_BUDGET = ScanBudget("Step 2 host loop", maximum_steps=SCAN_SEQUENCE_MAX_STEPS)
 _STEP2_LOOP_MAX_STEPS = _STEP2_LOOP_BUDGET.maximum_steps
 _ACTUAL_INT_TYPES = frozenset({int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")})
 _ACTUAL_FLOAT_TYPES = frozenset(

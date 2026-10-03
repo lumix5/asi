@@ -31,6 +31,7 @@ import numpy as np
 from jax import Array
 from jaxtyping import Bool, Float
 
+from alberta_framework._scan_resources import SCAN_SEQUENCE_MAX_STEPS
 from alberta_framework.core._float32_scalars import validated_float32_scalar
 from alberta_framework.core.multi_head_learner import (
     MULTI_HEAD_MLP_STATE_SCHEMA,
@@ -57,7 +58,7 @@ _ACTUAL_REAL_TYPES = _ACTUAL_INT_TYPES | frozenset(
 # The Horde learning loops below hand caller-supplied ``observations``,
 # ``cumulants``, and ``next_observations`` straight to ``jax.lax.scan`` with
 # no other cap on the scanned sequence length.
-_HORDE_SEQUENCE_MAX_STEPS = 10_000
+_HORDE_SEQUENCE_MAX_STEPS = SCAN_SEQUENCE_MAX_STEPS
 
 
 def _require_float32(

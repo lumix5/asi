@@ -33,6 +33,7 @@ import numpy as np
 from jax import Array
 from jaxtyping import Float, Int
 
+from alberta_framework._scan_resources import SCAN_SEQUENCE_MAX_STEPS
 from alberta_framework.core._float32_scalars import validated_float32_scalar_with_ratio
 from alberta_framework.core.horde import HordeLearner
 from alberta_framework.core.multi_head_learner import (
@@ -66,7 +67,7 @@ _INT32_MAX = 2**31 - 1
 # scan-driven array loops elsewhere in ``core`` (see
 # ``learners._LEARNING_LOOP_MAX_STEPS`` and ``utils.nexting``). SARSA's
 # array-based loops below have no other cap on the scanned sequence length.
-_SARSA_SEQUENCE_MAX_STEPS = 10_000
+_SARSA_SEQUENCE_MAX_STEPS = SCAN_SEQUENCE_MAX_STEPS
 _SARSA_CONFIG_FIELDS = {
     "n_actions",
     "gamma",
