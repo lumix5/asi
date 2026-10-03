@@ -49,6 +49,7 @@ import numpy as np
 from jax import Array
 from jaxtyping import Bool, Float, Int, UInt
 
+from alberta_framework._scan_resources import ScanBudget, require_scan_steps
 from alberta_framework.core._float32_scalars import validated_float32_scalar
 from alberta_framework.core.checkpoints import (
     load_checkpoint,
@@ -185,6 +186,15 @@ _PROTOTYPE_V2_REPLAY_MIGRATION_TAG = 0x50525632
 _PROTOTYPE_FEATURE_LIFECYCLE_KEY_TAG = 0x50464C43
 _UINT32_MAX = 2**32 - 1
 _INT32_MAX = 2**31 - 1
+
+# Public last-fit prototype array scans are a few thousand steps.  The two
+# scan entrypoints below hand caller-supplied sequences straight to
+# ``jax.lax.scan``; a signed-int32 shape bound is not a compute budget (the
+# maintainer rejection of PR #2041), and merged PR #2060 consolidated every
+# other scan path onto the shared ``ScanBudget`` contract but missed this
+# module.  A hostile or mistaken multi-million-step array hangs tracing and
+# compilation well before any step executes.
+_PROTOTYPE_SCAN_BUDGET = ScanBudget("Prototype agent transition scan", 10_000)
 
 # ---------------------------------------------------------------------------
 # Standalone utility
@@ -7268,6 +7278,10 @@ class PrototypeAgent:
 
         Returns:
             :class:`PrototypeArrayResult` with final state and per-step arrays.
+
+        The leading step axis is bounded by the shared scan budget
+        (``_PROTOTYPE_SCAN_BUDGET``) so a hostile sequence length is rejected
+        before it reaches ``jax.lax.scan``.
         """
         if type(state) is not PrototypeAgentState:
             raise TypeError("state must be an exact PrototypeAgentState")
@@ -7296,8 +7310,7 @@ class PrototypeAgent:
             n = int(rewards.shape[0])
         except (AttributeError, IndexError, TypeError, ValueError) as error:
             raise TypeError("rewards must expose trusted shape metadata") from error
-        if not 1 <= n <= _INT32_MAX:
-            raise ValueError("rewards must contain between 1 and signed-int32 steps")
+        require_scan_steps("rewards length", n, _PROTOTYPE_SCAN_BUDGET)
 
         raw_observation_dim = (
             self._config.gru_perception.observation_dim
@@ -7448,8 +7461,7 @@ class PrototypeAgent:
             n = int(transitions.reward.shape[0])
         except (AttributeError, IndexError, TypeError, ValueError) as error:
             raise TypeError("transitions must expose trusted shape metadata") from error
-        if not 1 <= n <= _INT32_MAX:
-            raise ValueError("transitions must contain between 1 and signed-int32 steps")
+        require_scan_steps("transitions length", n, _PROTOTYPE_SCAN_BUDGET)
 
         use_partner_input = partner_policy_fusion_input is not None
         use_partner_feedback = partner_policy_fusion_feedback is not None

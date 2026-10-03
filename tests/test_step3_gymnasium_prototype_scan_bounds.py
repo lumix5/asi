@@ -292,7 +292,8 @@ class TestPrototypeAgentScanValidation:
         rewards = jnp.zeros((0,), dtype=jnp.float32)
         next_obs = jnp.zeros((0, agent.config.oak.observation_dim), dtype=jnp.float32)
         with pytest.raises(
-            ValueError, match="rewards must contain between 1 and signed-int32 steps"
+            ValueError,
+            match="rewards length must be an integer in \\[1, 10000\\]",
         ):
             agent.scan(state, rewards, next_obs)
 
@@ -333,7 +334,8 @@ class TestPrototypeAgentScanValidation:
             next_decision_observation=jnp.zeros((0, obs_dim), dtype=jnp.float32),
         )
         with pytest.raises(
-            ValueError, match="transitions must contain between 1 and signed-int32 steps"
+            ValueError,
+            match="transitions length must be an integer in \\[1, 10000\\]",
         ):
             agent.scan_transitions(state, transition)
 
