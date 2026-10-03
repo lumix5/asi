@@ -303,3 +303,50 @@ def test_prototype_valid_construction() -> None:
     assert restored == cfg
     gru = GRUPerceptionConfig(observation_dim=4, hidden_dim=4)
     assert gru.augmented_dim() == 8
+
+
+def test_horde_hidden_sizes_length_ceiling_rejects_oversized() -> None:
+    # horde_hidden_sizes is walked element-by-element (and copied into a
+    # canonical tuple) by both __post_init__ and from_config before any
+    # downstream resource preflight runs. A hostile or mistaken
+    # multi-million-entry payload must be rejected by cardinality at the
+    # deserialization boundary, matching the serialized-sequence ceiling
+    # already merged for UPGD/MultiHead hidden sizes and working-memory decay.
+    with pytest.raises(
+        ValueError, match=r"horde_hidden_sizes length must be an integer in \[0, 4096\]"
+    ):
+        _cfg(horde_hidden_sizes=(64,) * 4097)
+
+
+def test_horde_hidden_sizes_at_ceiling_is_accepted() -> None:
+    # The ceiling leaves six orders of magnitude above the (64, 64) last-fit;
+    # a payload exactly at the bound is valid.
+    cfg = _cfg(horde_hidden_sizes=(64,) * 4096)
+    assert len(cfg.horde_hidden_sizes) == 4096
+
+
+def test_from_config_rejects_oversized_serialized_horde_hidden_sizes() -> None:
+    payload = _cfg().to_config()
+    payload["horde_hidden_sizes"] = [64] * 4097
+    with pytest.raises(
+        ValueError, match=r"horde_hidden_sizes length must be an integer in \[0, 4096\]"
+    ):
+        PrototypeAgentConfig.from_config(payload)
+
+
+def test_from_config_rejects_hidden_sizes_list_subclass_without_hooks() -> None:
+    # Exact-type rejection must win before any __len__/__iter__ hook runs,
+    # matching the #2225/#2896 deserializer criteria.
+    class _HookedList(list):  # type: ignore[type-arg]
+        def __len__(self) -> int:  # pragma: no cover - must not run
+            raise AssertionError("len hook executed")
+
+        def __iter__(self) -> Iterator[int]:  # pragma: no cover - must not run
+            raise AssertionError("iter hook executed")
+
+    payload = _cfg().to_config()
+    payload["horde_hidden_sizes"] = _HookedList([64, 64])
+    with pytest.raises(
+        ValueError, match="serialized horde_hidden_sizes must be an actual list"
+    ):
+        PrototypeAgentConfig.from_config(payload)

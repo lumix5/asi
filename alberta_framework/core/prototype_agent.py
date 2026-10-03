@@ -267,6 +267,11 @@ def feature_to_subtask_specs(
 
 _INT32_MAX = 2**31 - 1
 _UINT32_MAX = 4_294_967_295
+# Serialized-sequence cardinality ceiling, matching the merged working-memory
+# decay-list bound (#2220), the UPGD/MultiHead hidden-sizes bound, and
+# ``types._MAX_HORDE_DEMONS``: reject a payload with millions of layer sizes
+# before the per-element walk and the canonical tuple copy, not after them.
+_MAX_HORDE_HIDDEN_SIZES = 1 << 12
 _ACTUAL_INT_TYPES: tuple[type, ...] = (int, *(np.dtype(code).type for code in "bBhHiIlLqQpP"))
 _ACTUAL_FLOAT_TYPES: tuple[type, ...] = (
     float,
@@ -600,7 +605,10 @@ class PrototypeAgentConfig:
             is only valid when the complete control observation is one-hot.
         horde_spec: GVF Horde specification (step 3).  When ``None``, the
             prediction-demon pathway is disabled.
-        horde_hidden_sizes: Trunk layer widths for the Horde MLP.
+        horde_hidden_sizes: Trunk layer widths for the Horde MLP. Capped at
+            4096 layers: the value is walked element-by-element at
+            construction and deserialization, and oversized serialized lists
+            must be rejected by cardinality before that walk.
         horde_step_size: Base step-size for the Horde learner.
         ia: IA agent configuration (step 12).  When ``None``, the
             intelligence-amplification companion is disabled.
@@ -726,6 +734,10 @@ class PrototypeAgentConfig:
         raw_hidden = self.horde_hidden_sizes
         if type(raw_hidden) is not tuple:
             raise ValueError("horde_hidden_sizes must be a tuple of integers")
+        if len(raw_hidden) > _MAX_HORDE_HIDDEN_SIZES:
+            raise ValueError(
+                f"horde_hidden_sizes length must be an integer in [0, {_MAX_HORDE_HIDDEN_SIZES}]"
+            )
         canonical_hidden: list[int] = []
         for idx, value in enumerate(raw_hidden):
             canonical_hidden.append(
@@ -1319,6 +1331,10 @@ class PrototypeAgentConfig:
         hidden_raw = data.pop("horde_hidden_sizes", [64, 64])
         if type(hidden_raw) is not list:
             raise ValueError("serialized horde_hidden_sizes must be an actual list")
+        if len(hidden_raw) > _MAX_HORDE_HIDDEN_SIZES:
+            raise ValueError(
+                f"horde_hidden_sizes length must be an integer in [0, {_MAX_HORDE_HIDDEN_SIZES}]"
+            )
         hidden_list: list[int] = []
         for idx, value in enumerate(hidden_raw):
             hidden_list.append(
