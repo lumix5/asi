@@ -22,10 +22,12 @@ from alberta_framework import (
     run_sarsa_from_arrays_final_state,
 )
 from alberta_framework.core.sarsa import (
+    _MAX_HIDDEN_SIZES,
     _SARSA_SEQUENCE_MAX_STEPS,
     _require_sarsa_matching_length,
     _require_sarsa_sequence_length,
 )
+from alberta_framework.core.types import _MAX_HORDE_DEMONS
 
 
 def _make_agent(
@@ -1632,6 +1634,92 @@ def test_sarsa_prediction_demons_require_exact_nested_scalar_schema() -> None:
         candidate["prediction_demons"] = [replacement]
         with pytest.raises(ValueError, match=message):
             SARSAAgent.from_config(candidate)
+
+
+def test_sarsa_agent_from_config_bounds_hidden_sizes_before_walking() -> None:
+    """Oversized serialized hidden_sizes are rejected before any element is read.
+
+    ``SARSAAgent.from_config`` type-scans the serialized ``hidden_sizes`` list
+    element by element and ``SARSAAgent.__init__`` canonicalizes the tuple
+    again before the downstream MultiHead ceiling (cf. #3030) ever fires. The
+    bound must precede the first element, including when every entry is
+    schema-invalid.
+    """
+
+    config = _make_agent(n_actions=2, hidden_sizes=(2,)).to_config()
+
+    schema_invalid = dict(config)
+    schema_invalid["hidden_sizes"] = [0.5] * (_MAX_HIDDEN_SIZES + 1)
+    with pytest.raises(ValueError, match="hidden_sizes length"):
+        SARSAAgent.from_config(schema_invalid)
+
+    oversized_valid = dict(config)
+    oversized_valid["hidden_sizes"] = [1] * (_MAX_HIDDEN_SIZES + 1)
+    with pytest.raises(ValueError, match="hidden_sizes length"):
+        SARSAAgent.from_config(oversized_valid)
+
+
+def test_sarsa_agent_from_config_accepts_boundary_hidden_sizes() -> None:
+    agent = SARSAAgent.from_config(
+        {**_make_agent(n_actions=2, hidden_sizes=(2,)).to_config(),
+         "hidden_sizes": [1] * _MAX_HIDDEN_SIZES}
+    )
+    assert agent.horde.n_demons == 2
+
+
+def test_sarsa_agent_from_config_bounds_prediction_demon_list_before_walking() -> None:
+    """Oversized serialized prediction_demons are rejected before any element is read.
+
+    ``SARSAAgent.from_config`` decodes every entry (exact dict-schema checks,
+    float32 narrowing, and one frozen ``GVFSpec`` construction per element)
+    and ``SARSAAgent.__init__`` canonicalizes the list again before
+    ``create_horde_spec`` applies the house serialized-sequence ceiling
+    (cf. #2225, ``types._MAX_HORDE_DEMONS``). The bound must precede the
+    first element, including when every entry is schema-invalid.
+    """
+
+    valid = GVFSpec(
+        name="prediction",
+        demon_type=DemonType.PREDICTION,
+        gamma=0.5,
+        lamda=0.5,
+        cumulant_index=0,
+    )
+    payload = SARSAAgent(
+        SARSAConfig(n_actions=2), hidden_sizes=(), prediction_demons=[valid]
+    ).to_config()
+    serialized_demon = payload["prediction_demons"][0]
+
+    schema_invalid = dict(payload)
+    schema_invalid["prediction_demons"] = [{"name": 1}] * (_MAX_HORDE_DEMONS + 1)
+    with pytest.raises(ValueError, match=f"at most {_MAX_HORDE_DEMONS}"):
+        SARSAAgent.from_config(schema_invalid)
+
+    oversized_valid = dict(payload)
+    oversized_valid["prediction_demons"] = [serialized_demon] * (_MAX_HORDE_DEMONS + 1)
+    with pytest.raises(ValueError, match=f"at most {_MAX_HORDE_DEMONS}"):
+        SARSAAgent.from_config(oversized_valid)
+
+
+def test_sarsa_agent_from_config_accepts_boundary_prediction_demon_list() -> None:
+    valid = GVFSpec(
+        name="prediction",
+        demon_type=DemonType.PREDICTION,
+        gamma=0.5,
+        lamda=0.5,
+        cumulant_index=0,
+    )
+    payload = SARSAAgent(
+        SARSAConfig(n_actions=2), hidden_sizes=(), prediction_demons=[valid]
+    ).to_config()
+    # ``create_horde_spec`` bounds the combined control + prediction list, so
+    # the boundary payload fills the ceiling exactly: 2 control heads plus
+    # ``_MAX_HORDE_DEMONS - 2`` prediction heads.
+    payload["prediction_demons"] = [payload["prediction_demons"][0]] * (
+        _MAX_HORDE_DEMONS - 2
+    )
+    agent = SARSAAgent.from_config(payload)
+    assert agent.horde.n_demons == _MAX_HORDE_DEMONS
 
 
 def test_sarsa_init_rejects_aggregate_state_overflow_before_jax_allocation() -> None:

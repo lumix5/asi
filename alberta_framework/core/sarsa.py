@@ -47,6 +47,7 @@ from alberta_framework.core.normalizers import (
 )
 from alberta_framework.core.optimizers import Bounder
 from alberta_framework.core.types import (
+    _MAX_HORDE_DEMONS,
     DemonType,
     GVFSpec,
     TraceMode,
@@ -67,6 +68,11 @@ _INT32_MAX = 2**31 - 1
 # ``learners._LEARNING_LOOP_MAX_STEPS`` and ``utils.nexting``). SARSA's
 # array-based loops below have no other cap on the scanned sequence length.
 _SARSA_SEQUENCE_MAX_STEPS = 10_000
+# Serialized-sequence cardinality ceiling, matching the merged working-memory
+# decay-list bound (#2220), the stacked-horde demon bound, and
+# ``types._MAX_HORDE_DEMONS``: reject a payload with millions of layer sizes
+# before copying and walking it (cf. #3030).
+_MAX_HIDDEN_SIZES = 1 << 12
 _SARSA_CONFIG_FIELDS = {
     "n_actions",
     "gamma",
@@ -659,11 +665,22 @@ class SARSAAgent:
             raise ValueError("serialized sarsa_config must be an actual dict")
         if type(config["hidden_sizes"]) is not list:
             raise ValueError("serialized hidden_sizes must be an actual list")
+        if len(config["hidden_sizes"]) > _MAX_HIDDEN_SIZES:
+            raise ValueError(
+                f"hidden_sizes length must be an integer in [0, {_MAX_HIDDEN_SIZES}]"
+            )
         if (
             config["prediction_demons"] is not None
             and type(config["prediction_demons"]) is not list
         ):
             raise ValueError("serialized prediction_demons must be an actual list or None")
+        if (
+            config["prediction_demons"] is not None
+            and len(config["prediction_demons"]) > _MAX_HORDE_DEMONS
+        ):
+            raise ValueError(
+                f"demons must contain at most {_MAX_HORDE_DEMONS} GVFSpec entries"
+            )
         if type(config["trace_mode"]) is not str:
             raise ValueError("serialized trace_mode must be an actual string")
         if any(type(width) is not int for width in config["hidden_sizes"]):
