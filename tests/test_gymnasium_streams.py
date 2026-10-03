@@ -117,8 +117,10 @@ def test_schedule_and_shape_contracts_fail_before_environment_execution(
         for num_steps in (0, -1, True, 1.5, "1"):
             with pytest.raises(ValueError, match="num_steps"):
                 collect_trajectory(env, None, num_steps)  # type: ignore[arg-type]
-        with pytest.raises(ValueError, match="trajectory output"):
+        with pytest.raises(ValueError, match="trajectory limit"):
             collect_trajectory(env, None, 2**31 - 1)
+        with pytest.raises(ValueError, match="trajectory limit"):
+            collect_trajectory(env, None, 10_001)
         with pytest.raises(ValueError, match="exact bool"):
             collect_trajectory(env, None, 1, include_action_in_features=1)  # type: ignore[arg-type]
         with pytest.raises(ValueError, match="PredictionMode"):

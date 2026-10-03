@@ -44,6 +44,14 @@ if TYPE_CHECKING:
 
 _INT32_MAX = 2**31 - 1
 _INT32_MIN = -(2**31)
+# Matches the documented learning-loop step ceiling established for
+# scan-driven array loops elsewhere in the framework (see
+# ``core.learners._LEARNING_LOOP_MAX_STEPS``,
+# ``core.sarsa._SARSA_SEQUENCE_MAX_STEPS``, and
+# ``core.off_policy_td._MAX_LEARNING_LOOP_STEPS``). Trajectory collection
+# runs an unbounded Python environment loop and hands its output straight to
+# ``jax.lax.scan``, so the same ceiling applies here.
+_TRAJECTORY_MAX_STEPS = 10_000
 _ACTUAL_INT_TYPES = frozenset({int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")})
 
 
@@ -374,7 +382,7 @@ def collect_trajectory(
     Args:
         env: Gymnasium environment instance
         policy: Action selection function. If None, uses random policy
-        num_steps: Number of steps to collect
+        num_steps: Number of steps to collect (at most 10,000)
         mode: What to predict (REWARD, NEXT_STATE, VALUE). VALUE targets
             are ``reward + gamma * value_estimator(next_obs)`` when a
             ``value_estimator`` is supplied (``reward`` alone on
@@ -392,6 +400,10 @@ def collect_trajectory(
         (num_steps, feature_dim) and (num_steps, target_dim)
     """
     num_steps = _require_positive_int32("num_steps", num_steps)
+    if num_steps > _TRAJECTORY_MAX_STEPS:
+        raise ValueError(
+            f"num_steps exceeds the trajectory limit of {_TRAJECTORY_MAX_STEPS} steps"
+        )
     mode = _require_mode(mode)
     include_action_in_features = _require_exact_bool(
         "include_action_in_features", include_action_in_features
@@ -516,6 +528,11 @@ def learn_from_trajectory(
         raise ValueError("targets must be a 1D or 2D array")
     if not 1 <= num_steps <= _INT32_MAX:
         raise ValueError("observations sequence length must be an integer in [1, 2147483647]")
+    if num_steps > _TRAJECTORY_MAX_STEPS:
+        raise ValueError(
+            "observations sequence length exceeds the trajectory scan limit "
+            f"of {_TRAJECTORY_MAX_STEPS} steps"
+        )
     if target_steps != num_steps:
         raise ValueError("targets sequence length must match observations sequence length")
     if feature_dim is None or not 1 <= feature_dim <= _INT32_MAX:

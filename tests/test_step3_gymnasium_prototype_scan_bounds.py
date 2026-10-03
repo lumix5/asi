@@ -213,6 +213,12 @@ class TestGymnasiumTrajectoryScanValidation:
         with pytest.raises(ValueError, match="observations sequence length must be an integer"):
             learn_from_trajectory(learner, obs, targets)
 
+    def test_rejects_oversized_sequence_length(self, learner) -> None:
+        obs = jnp.zeros((10_001, 3), dtype=jnp.float32)
+        targets = jnp.zeros((10_001, 1), dtype=jnp.float32)
+        with pytest.raises(ValueError, match="trajectory scan limit"):
+            learn_from_trajectory(learner, obs, targets)
+
     def test_rejects_step_mismatch(self, learner) -> None:
         obs = jnp.zeros((5, 3), dtype=jnp.float32)
         targets = jnp.zeros((4, 1), dtype=jnp.float32)
