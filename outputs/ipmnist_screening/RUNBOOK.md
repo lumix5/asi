@@ -341,3 +341,32 @@ Remeasured control seeds 0-2 track the archived n=3 within the run-to-run
 jitter class. Artifacts: `gate_ablation_r2/shards/` (20 v2 shards),
 `gate_ablation_r2/summary.json` (control `rls_head_resid_l1_preset005`),
 per-shard logs. Ledger entry 16.
+
+## Gradual-change protocol (2026-10-03, issue #1569)
+
+The screening runner gained `--noise-mode gradual` (issue #1569; reference
+pin: arXiv 2602.09234, "gradual" domain-shift construction — no official
+code exists to pin, so the protocol difference is recorded here instead of
+in a pinned receipt). It is a **deterministic input-transition protocol**,
+not a noise process: across the first `noise_gradual_steps` steps of each
+task the input mapping ramps from the previous task's permutation to the
+current one, `x = (1 - alpha) * data_x[e][perm_prev] + alpha *
+data_x[e][perm]` with `alpha = (i + 1) / noise_gradual_steps` capped at 1.0.
+The ramp draws no RNG keys, so gradual runs are exactly reproducible given
+the seed, and window 1 collapses bitwise to the abrupt `step` protocol
+(pinned by `TestGradualConfirmation`). This lane's tasks differ only by
+input permutation, so the transition is input-side only; labels are
+invariant across tasks and no output-side transition exists here to
+gradualize. Protocol differences from the reference family: linear (not
+sigmoid) ramp, per-task reset of the ramp, no hold-out or interleave
+phase.
+
+Constraints, mirroring the pool-mode contract: gradual shards record
+`noise_mode="gradual"` and `noise_gradual_steps` in a v3 shard schema
+(`alberta.ipmnist_screening.shard.v3`; step/pool shards keep the exact v2
+key set so every existing artifact stays loadable), never merge with exact
+shards, never pass proxy validation, and never produce a mechanism receipt
+(the receipt lanes — C-CHAIN, replay/frozen — refuse gradual at the mode
+gate). Merges of gradual shards require one shared window and emit a v3
+summary recording it. No gradual wave has been executed; any future wave
+is development-only and permanently nonpromoting.
