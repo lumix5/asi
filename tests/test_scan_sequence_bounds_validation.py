@@ -46,6 +46,7 @@ from alberta_framework.steps.step4 import (
     init_step4_state,
     make_step4_sarsa_agent,
     run_step4_scan,
+    run_step4_smoke,
 )
 from alberta_framework.streams.synthetic import RandomWalkStream
 
@@ -311,6 +312,48 @@ def test_step4_scan_validation() -> None:
             jnp.zeros((0,), dtype=jnp.float32),
             jnp.zeros((0,), dtype=jnp.float32),
         )
+
+
+def test_step4_scan_rejects_oversized_sequence_before_scan() -> None:
+    """The int32 output-bytes preflight admits ~1.3e8 steps; ceiling applies first."""
+    agent = make_step4_sarsa_agent()
+    state = init_step4_state(
+        agent,
+        feature_dim=4,
+        key=jr.key(3),
+        initial_features=jnp.zeros((4,), dtype=jnp.float32),
+    )
+    n_steps = 10_001
+    with pytest.raises(
+        ValueError, match=r"scan sequence length must be an integer in \[1, 10000\]"
+    ):
+        run_step4_scan(
+            agent,
+            state,
+            jnp.zeros((n_steps, 4), dtype=jnp.float32),
+            jnp.zeros((n_steps,), dtype=jnp.float32),
+            jnp.zeros((n_steps,), dtype=jnp.float32),
+        )
+
+
+def test_step4_scan_ceiling_matches_the_wrapped_sarsa_runner() -> None:
+    from alberta_framework.steps import step4 as step4_module
+
+    assert step4_module._STEP4_SCAN_MAX_STEPS == 10_000
+
+
+def test_step4_smoke_rejects_oversized_steps_before_allocation() -> None:
+    with pytest.raises(ValueError, match=r"steps must be an integer in \[1, 10000\]"):
+        run_step4_smoke(steps=10_001)
+
+
+def test_step4_smoke_accepts_the_ceiling_boundary() -> None:
+    result = run_step4_smoke(steps=10_000, feature_dim=4, seed=5)
+
+    assert result.finite
+    assert result.q_values_shape == (10_000, 2)
+    assert result.td_errors_shape == (10_000,)
+    assert result.actions_shape == (10_000,)
 
 
 # ---------------------------------------------------------------------------

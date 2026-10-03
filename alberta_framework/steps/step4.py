@@ -57,6 +57,14 @@ from alberta_framework.steps._smoke_record_validation import require_step_shape
 Step4OptimizerName = Literal["lms", "idbd", "autostep"]
 Step4BounderName = Literal["none", "obgd"]
 _INT32_MAX = 2**31 - 1
+# ``run_step4_scan`` hands its transition arrays straight to ``jax.lax.scan``
+# with no bound on the leading (step) axis: the int32 output-bytes preflight
+# still admits ~1.3e8 steps, so a hostile or mistaken caller can force JAX to
+# trace a scan far past any useful horizon and hang the process before the
+# first step executes. This is the established array-runner ceiling of the
+# wrapped SARSA learner (``core.sarsa._SARSA_SEQUENCE_MAX_STEPS``) and the
+# other scan-driven runners (``steps.step9._STEP9_SEQUENCE_MAX_STEPS``).
+_STEP4_SCAN_MAX_STEPS = 10_000
 _ACTUAL_INT_TYPES = frozenset({int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")})
 _FLOAT32_MIN_NORMAL = float.fromhex("0x1.0p-126")
 
@@ -403,7 +411,13 @@ def run_step4_scan(
     rewards: Array,
     terminated: Array,
 ) -> SARSAArrayResult:
-    """Run Step 4 SARSA over pre-collected transition arrays."""
+    """Run Step 4 SARSA over pre-collected transition arrays.
+
+    Raises:
+        ValueError: If the sequence is empty or exceeds the documented
+            scan-length ceiling (``_STEP4_SCAN_MAX_STEPS``), or the step
+            arrays do not share the trusted leading length.
+    """
     if type(agent) is not SARSAAgent:
         raise TypeError("agent must be an exact SARSAAgent")
     if type(state) is not SARSAState:
@@ -413,6 +427,10 @@ def run_step4_scan(
     if len(features_shape) != 2:
         raise ValueError("next_features must have shape (num_steps, feature_dim)")
     num_steps = _require_positive_int("scan sequence length", features_shape[0])
+    if num_steps > _STEP4_SCAN_MAX_STEPS:
+        raise ValueError(
+            f"scan sequence length must be an integer in [1, {_STEP4_SCAN_MAX_STEPS}]"
+        )
 
     rewards_shape = _require_trusted_array_metadata("rewards", rewards)
     if rewards_shape != (num_steps,):
@@ -461,6 +479,8 @@ def run_step4_smoke(
 ) -> Step4SmokeResult:
     """Run a tiny deterministic Step 4 integration probe."""
     steps = _require_positive_int("steps", steps)
+    if steps > _STEP4_SCAN_MAX_STEPS:
+        raise ValueError(f"steps must be an integer in [1, {_STEP4_SCAN_MAX_STEPS}]")
     feature_dim = _require_positive_int("feature_dim", feature_dim)
     seed = require_jax_seed(seed, name="seed")
 
