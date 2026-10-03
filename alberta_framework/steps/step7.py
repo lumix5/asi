@@ -161,6 +161,16 @@ class Step7DynaConfig:
 
 
 _INT32_MAX = 2**31 - 1
+# Planning counts drive ``jax.lax.scan`` lengths directly (``planning_steps``
+# outer backups, ``planning_rollout_depth`` imagined rollout), so they share
+# the established 10,000-step scan/learning-loop ceiling (cf.
+# ``core.learners._LEARNING_LOOP_MAX_STEPS``,
+# ``core.sarsa._SARSA_SEQUENCE_MAX_STEPS``,
+# ``core.off_policy_td._MAX_LEARNING_LOOP_STEPS``,
+# ``streams.gymnasium._TRAJECTORY_MAX_STEPS``). The byte preflights below
+# still admit tens of millions of steps, which would hang or OOM before any
+# backup executes.
+_PLANNING_SCAN_MAX_STEPS = 10_000
 _STEP7_CONFIG_FIELDS = frozenset(
     {
         "control",
@@ -246,7 +256,7 @@ def _require_int(
             raise ValueError(f"{name} must be non-negative")
         raise ValueError(f"{name} must be >= {minimum}")
     if maximum is not None and number > maximum:
-        raise ValueError(f"{name} must be at most int32 max")
+        raise ValueError(f"{name} must be at most {maximum}")
     return number
 
 
@@ -267,13 +277,13 @@ def _validate_planning_config(config: Step7DynaConfig) -> None:
         "planning_steps",
         config.planning_steps,
         minimum=0,
-        maximum=_INT32_MAX,
+        maximum=_PLANNING_SCAN_MAX_STEPS,
     )
     planning_rollout_depth = _require_int(
         "planning_rollout_depth",
         config.planning_rollout_depth,
         minimum=1,
-        maximum=_INT32_MAX,
+        maximum=_PLANNING_SCAN_MAX_STEPS,
     )
     planning_warmup_steps = _require_int(
         "planning_warmup_steps",

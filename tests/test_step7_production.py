@@ -49,6 +49,8 @@ _INVALID_STEP7_FIELDS: tuple[tuple[str, Any], ...] = (
     ("planning_steps", "1"),
     ("planning_steps", None),
     ("planning_steps", 2**31),
+    ("planning_steps", 10_001),
+    ("planning_steps", 1_000_000),
     ("planning_rollout_depth", True),
     ("planning_rollout_depth", False),
     ("planning_rollout_depth", 0),
@@ -57,6 +59,8 @@ _INVALID_STEP7_FIELDS: tuple[tuple[str, Any], ...] = (
     ("planning_rollout_depth", "1"),
     ("planning_rollout_depth", None),
     ("planning_rollout_depth", 2**31),
+    ("planning_rollout_depth", 10_001),
+    ("planning_rollout_depth", 1_000_000),
     ("planning_warmup_steps", True),
     ("planning_warmup_steps", False),
     ("planning_warmup_steps", -1),
@@ -270,6 +274,25 @@ def test_step7_planning_fields_preserve_legal_endpoints() -> None:
     smoke = run_step7_smoke(config, steps=4, seed=0)
     assert smoke.finite
     assert smoke.planning_td_errors_shape == (4, 0)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("field", ["planning_steps", "planning_rollout_depth"])
+def test_step7_planning_scan_lengths_reject_above_shared_ceiling(field: str) -> None:
+    """Planning scan lengths share the 10,000-step ceiling.
+
+    Both values flow into ``jnp.arange``-driven ``lax.scan`` calls inside
+    ``step7_update``; the byte preflights still admit millions of steps, so
+    the ceiling must reject them before any backup executes.
+    """
+    with pytest.raises(ValueError, match="at most 10000"):
+        _config_with(**{field: 10_001})
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("field", ["planning_steps", "planning_rollout_depth"])
+def test_step7_planning_scan_lengths_accept_shared_ceiling(field: str) -> None:
+    assert getattr(_config_with(**{field: 10_000}), field) == 10_000
 
 
 @pytest.mark.unit
@@ -673,9 +696,12 @@ def test_step7_dyna_preserves_float32_boundaries() -> None:
 
 
 def test_step7_dyna_rejects_derived_work_and_memory_resources() -> None:
-    with pytest.raises(ValueError, match="derived planning evaluations"):
+    # The shared 10,000-step scan ceiling rejects INT32-scale planning counts
+    # before the derived-work guards below are reached; those guards stay as
+    # defense in depth for the product bounds.
+    with pytest.raises(ValueError, match="planning_steps must be at most 10000"):
         Step7DynaConfig(planning_steps=2**30, planning_rollout_depth=2)
-    with pytest.raises(ValueError, match="planning output bytes"):
+    with pytest.raises(ValueError, match="planning_steps must be at most 10000"):
         Step7DynaConfig(planning_steps=2**26, planning_rollout_depth=1)
     with pytest.raises(ValueError, match="planning-memory bytes"):
         Step7DynaConfig(planning_memory_size=2**28)
