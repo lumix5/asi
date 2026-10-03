@@ -45,6 +45,10 @@ from alberta_framework.core.update_safety import (
 )
 
 _INT32_MAX = 2**31 - 1
+# Public last-fit actor-critic array loops are a few thousand steps; a hostile
+# num_steps must be rejected before ``jax.lax.scan``, not merely charged
+# against the signed-int32 working-set budget.
+_ACTOR_CRITIC_SEQUENCE_MAX_STEPS = 10_000
 _ACTUAL_INT_TYPES = frozenset(
     {int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")}
 )
@@ -944,6 +948,10 @@ def run_actor_critic_from_arrays(
     used as the per-transition discount; otherwise ``terminated`` is mapped to
     ``0`` or ``agent.config.gamma`` for backward compatibility.
 
+    The leading step axis is bounded by the shared scan-length ceiling
+    (``_ACTOR_CRITIC_SEQUENCE_MAX_STEPS``) so a hostile sequence length is
+    rejected before it reaches ``jax.lax.scan``.
+
     Args:
         agent: Actor-critic agent.
         state: Initial actor-critic state.
@@ -967,8 +975,14 @@ def run_actor_critic_from_arrays(
 
     feature_dim = agent._feature_dim(state)
     observations_shape = _trusted_shape("observations", observations)
-    if len(observations_shape) != 2 or not 1 <= observations_shape[0] <= _INT32_MAX:
-        raise ValueError("observations must have shape (num_steps, feature_dim)")
+    if (
+        len(observations_shape) != 2
+        or not 1 <= observations_shape[0] <= _ACTOR_CRITIC_SEQUENCE_MAX_STEPS
+    ):
+        raise ValueError(
+            "observations must have shape (num_steps, feature_dim) with "
+            f"1 <= num_steps <= {_ACTOR_CRITIC_SEQUENCE_MAX_STEPS}"
+        )
     num_steps = observations_shape[0]
     expected_observations_shape = (num_steps, feature_dim)
     if observations_shape != expected_observations_shape or _trusted_shape(
@@ -1775,6 +1789,10 @@ def run_continuous_actor_critic_from_arrays(
     variant. By default the scan is on-policy with respect to the current
     actor; pass ``actions`` to use fixed behavior actions.
 
+    The leading step axis is bounded by the shared scan-length ceiling
+    (``_ACTOR_CRITIC_SEQUENCE_MAX_STEPS``) so a hostile sequence length is
+    rejected before it reaches ``jax.lax.scan``.
+
     Args:
         agent: Continuous actor-critic agent.
         state: Initial agent state.
@@ -1796,8 +1814,14 @@ def run_continuous_actor_critic_from_arrays(
 
     feature_dim = agent._feature_dim(state)
     observations_shape = _trusted_shape("observations", observations)
-    if len(observations_shape) != 2 or not 1 <= observations_shape[0] <= _INT32_MAX:
-        raise ValueError("observations must have shape (num_steps, feature_dim)")
+    if (
+        len(observations_shape) != 2
+        or not 1 <= observations_shape[0] <= _ACTOR_CRITIC_SEQUENCE_MAX_STEPS
+    ):
+        raise ValueError(
+            "observations must have shape (num_steps, feature_dim) with "
+            f"1 <= num_steps <= {_ACTOR_CRITIC_SEQUENCE_MAX_STEPS}"
+        )
     num_steps = observations_shape[0]
     expected_observations_shape = (num_steps, feature_dim)
     if observations_shape != expected_observations_shape or _trusted_shape(

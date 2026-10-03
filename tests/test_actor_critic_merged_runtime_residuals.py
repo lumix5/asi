@@ -12,6 +12,7 @@ from jax import Array
 
 from alberta_framework.core import actor_critic as actor_critic_module
 from alberta_framework.core.actor_critic import (
+    _ACTOR_CRITIC_SEQUENCE_MAX_STEPS,
     ActorCriticAgent,
     ActorCriticConfig,
     ContinuousActorCriticAgent,
@@ -245,8 +246,11 @@ def test_scan_working_set_preflight_precedes_jax_conversion(
     continuous: bool,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    feature_dim = 1_000
-    num_steps = 1_000_000
+    # The sequence-length ceiling guards first, so this test stays beneath it
+    # and isolates the working-set preflight: 10_000 steps with feature_dim
+    # 30_000 still exceeds the signed-int32 scan working-set budget.
+    feature_dim = 30_000
+    num_steps = _ACTOR_CRITIC_SEQUENCE_MAX_STEPS
     if continuous:
         agent = ContinuousActorCriticAgent(ContinuousActorCriticConfig(action_dim=1))
         state = agent.init(feature_dim, jr.key(0))
