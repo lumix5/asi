@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import math
 from typing import Any
 
 import jax.numpy as jnp
@@ -13,6 +14,10 @@ import pytest
 from alberta_framework.core.oak import OaKConfig
 from alberta_framework.core.options import STOMPConfig
 from alberta_framework.core.prototype_agent import PrototypeAgentConfig
+from alberta_framework.prototype_reference_adapter import (
+    PROTOTYPE_ACTION_SEMANTIC_ID,
+    PROTOTYPE_OBSERVATION_SEMANTIC_ID,
+)
 from alberta_framework.reference_agent import (
     AuthorizationStatus,
     DecisionOwnershipError,
@@ -20,6 +25,7 @@ from alberta_framework.reference_agent import (
     DispatchAuthorization,
     DispatchCommand,
     DispatchStatus,
+    SpaceSpec,
 )
 from alberta_framework.reference_life import (
     RIVERSWIM_REFERENCE_MAX_STATES,
@@ -355,3 +361,70 @@ def test_riverswim_reference_life_runs_five_keyed_events_without_extra_dispatch(
     )
     with pytest.raises(DecisionOwnershipError, match="completed"):
         runner.step(state)
+
+
+def _reference_environment(n_states: int) -> RiverSwimReferenceEnvironment:
+    return RiverSwimReferenceEnvironment(
+        RiverSwimConfig(  # type: ignore[call-arg]
+            n_states=n_states,
+            p_right_up=0.6,
+            p_right_down=0.2,
+            reward_left=0.05,
+            reward_right=1.0,
+            initial_state=0,
+        ),
+        observation_spec=SpaceSpec.box(
+            shape=(n_states,),
+            dtype="float32",
+            low=None,
+            high=None,
+            semantic_id=PROTOTYPE_OBSERVATION_SEMANTIC_ID,
+        ),
+        action_spec=SpaceSpec.discrete(
+            cardinality=2,
+            dtype="int32",
+            semantic_id=PROTOTYPE_ACTION_SEMANTIC_ID,
+        ),
+    )
+
+
+def test_riverswim_manifest_identity_is_stable_under_cross_machine_oracle_ulps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One float64 ULP of LAPACK drift must not change the manifest identity.
+
+    ``RiverSwimMDP.optimal_average_reward`` solves its stationary system
+    through LAPACK, whose final float64 bit may differ across runner CPU
+    microarchitectures. The raw value is embedded in the environment manifest
+    config and therefore in ``config_sha256`` and ``manifest_id``, which the
+    scorecard aggregate and checkpoint restore compare bit-exactly across
+    machines. The bound oracle scalar must be quantized onto a
+    machine-invariant grid so cross-machine rebuilds stay byte-identical.
+    """
+
+    baseline = _reference_environment(n_states=5)
+    probe_config = RiverSwimConfig(  # type: ignore[call-arg]
+        n_states=5,
+        p_right_up=0.6,
+        p_right_down=0.2,
+        reward_left=0.05,
+        reward_right=1.0,
+        initial_state=0,
+    )
+    raw_oracle = float(
+        f"{RiverSwimMDP(probe_config).optimal_average_reward():.12g}"
+    )
+    assert baseline.manifest.config["oracle_average_reward"] == raw_oracle
+
+    real_optimal_average_reward = RiverSwimMDP.optimal_average_reward
+
+    def _shifted_one_ulp(self: RiverSwimMDP) -> float:
+        return math.nextafter(real_optimal_average_reward(self), math.inf)
+
+    monkeypatch.setattr(RiverSwimMDP, "optimal_average_reward", _shifted_one_ulp)
+    try:
+        drifted = _reference_environment(n_states=5)
+    finally:
+        monkeypatch.undo()
+
+    assert drifted.manifest.descriptor() == baseline.manifest.descriptor()
