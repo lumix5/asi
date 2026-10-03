@@ -8849,6 +8849,7 @@ def _validated_screening_gradual_steps(
     noise_gradual_steps: object,
     *,
     context: Path | str | None = None,
+    task_length: int | None = None,
 ) -> int | None:
     """Return the effective gradual-transition contract for one run or shard.
 
@@ -8858,6 +8859,13 @@ def _validated_screening_gradual_steps(
     the input mapping ramps from the previous task's permutation to the
     current one. Window 1 is the exact abrupt protocol and is retained as the
     auditable mechanism-off reduction.
+
+    When the run's ``task_length`` is known, the window must also satisfy
+    ``window <= task_length``: each task's ramp has exactly ``task_length``
+    entries, so a longer window would end every task below ``alpha = 1.0``
+    and the next task would restart the interpolation from the pure previous
+    permutation instead of the blended mapping actually shown last — a
+    cross-task discontinuity the recorded window cannot describe.
     """
     prefix = "" if context is None else f"{context}: "
     if noise_mode != "gradual":
@@ -8877,6 +8885,13 @@ def _validated_screening_gradual_steps(
         raise ValueError(
             f"{prefix}noise_gradual_steps must be recorded as a built-in integer >= 1 "
             "when noise_mode='gradual'"
+        )
+    if task_length is not None and noise_gradual_steps > task_length:
+        raise ValueError(
+            f"{prefix}noise_gradual_steps must not exceed the run's task_length "
+            f"{task_length}: the per-task ramp has exactly task_length entries, so a "
+            "longer window never completes the transition and the next task would "
+            "restart from the pure previous permutation"
         )
     return noise_gradual_steps
 
@@ -9916,7 +9931,11 @@ class ScreeningRunResult:
         object.__setattr__(
             self,
             "noise_gradual_steps",
-            _validated_screening_gradual_steps(self.noise_mode, self.noise_gradual_steps),
+            _validated_screening_gradual_steps(
+                self.noise_mode,
+                self.noise_gradual_steps,
+                task_length=self.config.task_length,
+            ),
         )
         diagnostics = self.mechanism_diagnostics
         if diagnostics is not None:
@@ -10875,6 +10894,22 @@ def noise_curvature_development_result_payload(
     return validate_noise_curvature_development_result(payload)
 
 
+def _gradual_ramp(task_length: int, window: int) -> Array:
+    """Return the deterministic gradual-protocol alpha sequence for one task.
+
+    Entry ``i`` is ``min((i + 1) / window, 1.0)`` as float32, so the input
+    mapping reaches the current task's permutation exactly on step ``window``
+    and holds it for the remainder of the task. The construction is
+    RNG-free: given ``task_length`` and ``window`` the sequence is fully
+    determined, which is what makes the protocol auditable from its recorded
+    window alone.
+    """
+    return jnp.minimum(
+        (jnp.arange(task_length, dtype=jnp.float32) + 1.0) / jnp.float32(window),
+        jnp.float32(1.0),
+    )
+
+
 def run_screening_config(
     data_x: np.ndarray | Array,
     data_y: np.ndarray | Array,
@@ -10911,7 +10946,12 @@ def run_screening_config(
     data_x[e][perm]`` with ``alpha = (i + 1) / noise_gradual_steps`` capped at
     1.0. The ramp draws no RNG keys, so the protocol is fully deterministic
     given the seed, and window 1 collapses bitwise to the abrupt ``step``
-    protocol. This lane's tasks differ only by input permutation, so the
+    protocol. Because each task's ramp has exactly ``task_length`` entries,
+    the window is capped at ``task_length``: a longer window would end every
+    task below ``alpha = 1.0`` and the next task would restart the
+    interpolation from the pure previous permutation, a cross-task
+    discontinuity the recorded window could not describe. This lane's tasks
+    differ only by input permutation, so the
     transition is input-side only; labels are invariant across tasks.
     Gradual shards are a screening-only protocol artifact: they record
     ``noise_mode`` and ``noise_gradual_steps`` in a v3 schema, never merge
@@ -10955,6 +10995,7 @@ def run_screening_config(
     effective_noise_gradual_steps = _validated_screening_gradual_steps(
         noise_mode,
         noise_gradual_steps if noise_mode == "gradual" else None,
+        task_length=config.task_length,
     )
     resolved_x, resolved_y = _validated_ipmnist_data(
         data_x,
@@ -11050,11 +11091,7 @@ def run_screening_config(
     run_task_jit = jax.jit(run_task_pool if noise_mode == "pool" else run_task)
     if noise_mode == "gradual":
         assert effective_noise_gradual_steps is not None
-        window = jnp.float32(effective_noise_gradual_steps)
-        ramp = jnp.minimum(
-            (jnp.arange(config.task_length, dtype=jnp.float32) + 1.0) / window,
-            jnp.float32(1.0),
-        )
+        ramp = _gradual_ramp(config.task_length, effective_noise_gradual_steps)
         no_transition = jnp.ones(config.task_length, dtype=jnp.float32)
 
         def run_task_gradual(
@@ -11559,7 +11596,9 @@ def shard_payload(
         noise_mode, result.noise_pool_steps
     )
     noise_gradual_steps = _validated_screening_gradual_steps(
-        noise_mode, result.noise_gradual_steps
+        noise_mode,
+        result.noise_gradual_steps,
+        task_length=result.config.task_length,
     )
     source_binding = _validated_source_provenance(source_provenance, context="new shard")
     dataset_binding = _validated_dataset_provenance(dataset_provenance, context="new shard")
@@ -11821,6 +11860,11 @@ def load_shard(
     noise_mode = _validated_screening_noise_mode(
         payload.get("noise_mode", "step"), spec, context=path
     )
+    if schema == SHARD_SCHEMA_V3 and noise_mode != "gradual":
+        raise ValueError(
+            f"{path}: {SHARD_SCHEMA_V3} shards record the gradual protocol; "
+            f"noise_mode={noise_mode!r} belongs in a {SHARD_SCHEMA} shard"
+        )
     noise_pool_steps = _validated_screening_noise_pool_steps(
         noise_mode,
         payload.get("noise_pool_steps", _MISSING_NOISE_POOL_STEPS),
@@ -11831,6 +11875,7 @@ def load_shard(
         noise_mode,
         payload.get("noise_gradual_steps", _MISSING_NOISE_POOL_STEPS),
         context=path,
+        task_length=config.task_length,
     )
     payload["noise_mode"] = noise_mode
     payload["noise_pool_steps"] = noise_pool_steps
@@ -12068,6 +12113,11 @@ def merge_shards(
             "screening-only approximations); merge them separately"
         )
     noise_mode = noise_modes.pop()
+    if shard_schema == SHARD_SCHEMA_V3 and noise_mode != "gradual":
+        raise ValueError(
+            f"{SHARD_SCHEMA_V3} shards record the gradual protocol; the merged "
+            f"batch records noise_mode={noise_mode!r}"
+        )
     unrecorded_pool_shards = [
         f"{s['config_name']}/seed={s['seed']}"
         for s in shards

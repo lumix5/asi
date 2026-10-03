@@ -368,5 +368,12 @@ key set so every existing artifact stays loadable), never merge with exact
 shards, never pass proxy validation, and never produce a mechanism receipt
 (the receipt lanes — C-CHAIN, replay/frozen — refuse gradual at the mode
 gate). Merges of gradual shards require one shared window and emit a v3
-summary recording it. No gradual wave has been executed; any future wave
+summary recording it. The window is bounded by the run's `task_length`
+(each task's ramp has exactly `task_length` entries, so a longer window
+never completes the transition and the next task would restart the
+interpolation from the pure previous permutation) and every load/merge path
+re-derives that bound from the shard's recorded config; the v3 schema and
+the gradual mode are bound in both directions, so a step-mode payload
+claiming the v3 schema is rejected rather than merging into a v3 summary
+with no gradual window. No gradual wave has been executed; any future wave
 is development-only and permanently nonpromoting.
