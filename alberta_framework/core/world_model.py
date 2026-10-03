@@ -53,6 +53,10 @@ from alberta_framework.core.update_safety import (
 )
 
 _INT32_MAX = 2**31 - 1
+# Public last-fit world-model array loops are a few thousand steps; a hostile
+# num_steps must be rejected before ``jax.lax.scan``, not merely charged
+# against the signed-int32 working-set budget.
+_WORLD_MODEL_SEQUENCE_MAX_STEPS = 10_000
 _ACTUAL_INT_TYPES = frozenset({int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")})
 _ACTUAL_FLOAT_TYPES = frozenset(
     {float, Fraction, *(np.dtype(code).type for code in ("e", "f", "d", "g"))}
@@ -1049,12 +1053,24 @@ def run_action_conditioned_world_model_learning_loop(
     next_observations: Float[Array, "num_steps observation_dim"],
     discounts: Float[Array, " num_steps"] | None = None,
 ) -> ActionConditionedWorldModelLearningResult:
-    """Run online one-step model learning over transition arrays."""
+    """Run online one-step model learning over transition arrays.
+
+    The leading step axis is bounded by the shared scan-length ceiling
+    (``_WORLD_MODEL_SEQUENCE_MAX_STEPS``) so a hostile sequence length is
+    rejected before it reaches ``jax.lax.scan``.
+    """
     observation_dim = model.config.observation_dim
     n_heads = observation_dim + 2
     observation_shape = _scan_array_metadata("observations", observations)
-    if len(observation_shape) != 2 or observation_shape[1] != observation_dim:
-        raise ValueError(f"observations must have shape (num_steps, {observation_dim})")
+    if (
+        len(observation_shape) != 2
+        or not 1 <= observation_shape[0] <= _WORLD_MODEL_SEQUENCE_MAX_STEPS
+        or observation_shape[1] != observation_dim
+    ):
+        raise ValueError(
+            "observations must have shape (num_steps, "
+            f"{observation_dim}) with 1 <= num_steps <= {_WORLD_MODEL_SEQUENCE_MAX_STEPS}"
+        )
     num_steps = observation_shape[0]
     _require_scan_array("actions", actions, (num_steps,))
     _require_scan_array("rewards", rewards, (num_steps,))
@@ -1576,12 +1592,24 @@ def run_world_model_learning_loop(
     rewards: Array,
     next_observations: Array,
 ) -> WorldModelLearningResult:
-    """Run one-step world-model learning with ``jax.lax.scan``."""
+    """Run one-step world-model learning with ``jax.lax.scan``.
+
+    The leading step axis is bounded by the shared scan-length ceiling
+    (``_WORLD_MODEL_SEQUENCE_MAX_STEPS``) so a hostile sequence length is
+    rejected before it reaches ``jax.lax.scan``.
+    """
     observation_dim = model.config.observation_dim
     n_heads = observation_dim + 1
     observation_shape = _scan_array_metadata("observations", observations)
-    if len(observation_shape) != 2 or observation_shape[1] != observation_dim:
-        raise ValueError(f"observations must have shape (num_steps, {observation_dim})")
+    if (
+        len(observation_shape) != 2
+        or not 1 <= observation_shape[0] <= _WORLD_MODEL_SEQUENCE_MAX_STEPS
+        or observation_shape[1] != observation_dim
+    ):
+        raise ValueError(
+            "observations must have shape (num_steps, "
+            f"{observation_dim}) with 1 <= num_steps <= {_WORLD_MODEL_SEQUENCE_MAX_STEPS}"
+        )
     num_steps = observation_shape[0]
     action_shape = (
         (num_steps,)

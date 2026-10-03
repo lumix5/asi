@@ -26,10 +26,12 @@ from alberta_framework.core.dreaming import (
     init_dream_rollout_state,
 )
 from alberta_framework.core.world_model import (
+    _WORLD_MODEL_SEQUENCE_MAX_STEPS,
     ActionConditionedWorldModel,
     ActionConditionedWorldModelConfig,
     ActionConditionedWorldModelState,
     WorldModelPrediction,
+    _require_scan_resource,
     run_action_conditioned_world_model_learning_loop,
 )
 
@@ -878,8 +880,13 @@ def test_action_world_model_scan_preflights_complete_result_resources() -> None:
         ActionConditionedWorldModelConfig(observation_dim=1, n_actions=2, hidden_sizes=())
     )
     state = model.init(jr.key(0))
+    # The sequence-length ceiling guards first, so this hostile step count is
+    # rejected by the leading-axis bound. The working-set preflight's byte
+    # branch stays covered by the direct unit test below.
     steps = 21_000_000
-    with pytest.raises(ValueError, match="byte count"):
+    with pytest.raises(
+        ValueError, match=rf"1 <= num_steps <= {_WORLD_MODEL_SEQUENCE_MAX_STEPS}"
+    ):
         run_action_conditioned_world_model_learning_loop(
             model,
             state,
@@ -887,6 +894,21 @@ def test_action_world_model_scan_preflights_complete_result_resources() -> None:
             jax.ShapeDtypeStruct((steps,), jnp.int32),
             jax.ShapeDtypeStruct((steps,), jnp.float32),
             jax.ShapeDtypeStruct((steps, 1), jnp.float32),
+        )
+
+
+def test_action_world_model_scan_resource_preflight_rejects_int32_excess() -> None:
+    with pytest.raises(ValueError, match="scalar count"):
+        _require_scan_resource(
+            "action-conditioned world-model learning result",
+            float32_scalars=2**31,
+            bool_scalars=0,
+        )
+    with pytest.raises(ValueError, match="byte count"):
+        _require_scan_resource(
+            "action-conditioned world-model learning result",
+            float32_scalars=600_000_000,
+            bool_scalars=0,
         )
 
 

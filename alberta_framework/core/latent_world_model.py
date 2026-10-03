@@ -79,6 +79,10 @@ from alberta_framework.core.update_safety import (
 EVIDENCE_LEVEL = "L0"
 SCIENTIFIC_PROMOTION_ALLOWED = False
 _INT32_MAX = 2**31 - 1
+# Public last-fit latent world-model array loops are a few thousand steps; a
+# hostile scan sequence length must be rejected before ``jax.lax.scan``, not
+# merely charged against the signed-int32 working-set budget.
+_LATENT_WORLD_MODEL_SEQUENCE_MAX_STEPS = 10_000
 _ACTUAL_INT_TYPES = frozenset({int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")})
 
 
@@ -1093,7 +1097,12 @@ def run_latent_world_model_learning_loop(
     next_observations: Float[Array, "num_steps observation_dim"],
     discounts: Float[Array, " num_steps"] | None = None,
 ) -> LatentWorldModelLearningResult:
-    """Run online latent world-model learning over transition arrays."""
+    """Run online latent world-model learning over transition arrays.
+
+    The leading step axis is bounded by the shared scan-length ceiling
+    (``_LATENT_WORLD_MODEL_SEQUENCE_MAX_STEPS``) so a hostile sequence length
+    is rejected before it reaches ``jax.lax.scan``.
+    """
     if type(model) is not LatentWorldModel:
         raise TypeError("model must be an exact LatentWorldModel")
     if type(state) is not LatentWorldModelState:
@@ -1104,7 +1113,12 @@ def run_latent_world_model_learning_loop(
         raise ValueError(
             f"observations must have shape (num_steps, {model.config.observation_dim})"
         )
-    num_steps = _require_int32("scan sequence length", obs_shape[0], minimum=1)
+    num_steps = _require_int32(
+        "scan sequence length",
+        obs_shape[0],
+        minimum=1,
+        maximum=_LATENT_WORLD_MODEL_SEQUENCE_MAX_STEPS,
+    )
 
     next_obs_shape = _require_scan_array_metadata("next_observations", next_observations)
     if next_obs_shape != (num_steps, model.config.observation_dim):

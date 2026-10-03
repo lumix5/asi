@@ -12,8 +12,10 @@ import numpy as np
 import pytest
 
 from alberta_framework.core.world_model import (
+    _WORLD_MODEL_SEQUENCE_MAX_STEPS,
     OneStepWorldModel,
     WorldModelConfig,
+    _require_scan_resource,
     run_world_model_learning_loop,
 )
 
@@ -397,8 +399,13 @@ def test_world_model_scan_preflights_metadata_and_complete_result_resources() ->
             jnp.zeros((2, 1), dtype=jnp.float32),
         )
 
+    # The sequence-length ceiling guards first, so this hostile step count is
+    # rejected by the leading-axis bound. The working-set preflight's byte
+    # branch stays covered by the direct unit test below.
     steps = 60_000_000
-    with pytest.raises(ValueError, match="byte count"):
+    with pytest.raises(
+        ValueError, match=rf"1 <= num_steps <= {_WORLD_MODEL_SEQUENCE_MAX_STEPS}"
+    ):
         run_world_model_learning_loop(
             model,
             state,
@@ -406,6 +413,21 @@ def test_world_model_scan_preflights_metadata_and_complete_result_resources() ->
             jax.ShapeDtypeStruct((steps,), jnp.int32),
             jax.ShapeDtypeStruct((steps,), jnp.float32),
             jax.ShapeDtypeStruct((steps, 1), jnp.float32),
+        )
+
+
+def test_world_model_scan_resource_preflight_rejects_int32_excess() -> None:
+    with pytest.raises(ValueError, match="scalar count"):
+        _require_scan_resource(
+            "world-model learning result",
+            float32_scalars=2**31,
+            bool_scalars=0,
+        )
+    with pytest.raises(ValueError, match="byte count"):
+        _require_scan_resource(
+            "world-model learning result",
+            float32_scalars=600_000_000,
+            bool_scalars=0,
         )
 
 
