@@ -415,28 +415,33 @@ class TestETDLambda:
         )
 
         # F_t = rho_{t-1} * gamma_t * F_{t-1} + i_t (Sutton, Mahmood & White
-        # 2016, eq. 20): F advances on the PRIOR step's rho, not the current
-        # one. init()'s previous_rho=1.0 is irrelevant here since F_0=0.
-        # F_1 = 1.0 * 0.9 * 0 + 1 = 1
-        # F_2 = rho_1 * 0.8 * 1 + 1 = 2.0 * 0.8 * 1 + 1 = 2.6
-        # M_2 = lambda * i + (1 - lambda) * F_2 = 0.4 + 0.6 * 2.6 = 1.96
+        # 2016, eq. 20): F advances on the PRIOR transition's (rho, gamma)
+        # pair, not on the current call's values. init()'s seeded
+        # previous (rho=1, gamma=1) is irrelevant here since F_0=0.
+        # F_1 = 1.0 * 1.0 * 0 + 1 = 1
+        # F_2 = rho_1 * gamma_1 * 1 + 1 = 2.0 * 0.9 * 1 + 1 = 2.8
+        # M_2 = lambda * i + (1 - lambda) * F_2 = 0.4 + 0.6 * 2.8 = 2.08
+        # e_1 = rho_1 * (gamma_init * lambda * 0 + M_1 * x_1) = 2.0 * [1, 0]
+        # e_2 = rho_2 * (gamma_1 * lambda * e_1 + M_2 * x_2)
+        #     = 0.5 * ([0.72, 0] + [0, 2.08]) = [0.36, 1.04]
         chex.assert_trees_all_close(first.state.follow_on_trace, jnp.float32(1.0))
-        chex.assert_trees_all_close(second.state.follow_on_trace, jnp.float32(2.6))
-        chex.assert_trees_all_close(second.state.emphasis, jnp.float32(1.96))
+        chex.assert_trees_all_close(second.state.follow_on_trace, jnp.float32(2.8))
+        chex.assert_trees_all_close(second.state.emphasis, jnp.float32(2.08))
         chex.assert_trees_all_close(
             second.state.eligibility_traces,
-            jnp.array([0.32, 0.98], dtype=jnp.float32),
+            jnp.array([0.36, 1.04], dtype=jnp.float32),
             atol=1e-6,
         )
 
     def test_follow_on_trace_advances_on_previous_step_rho_not_current(self) -> None:
         """F_t = rho_{t-1} * gamma_t * F_{t-1} + i_t (Sutton, Mahmood & White
-        2016, eq. 20): the follow-on trace must advance on the PRIOR step's
-        importance ratio. rho_t (the ratio of the transition currently being
-        processed) only governs e_t, the eligibility trace, not F_t. This
-        test isolates F_t (lambda=0 so M_t == F_t exactly) across three
-        steps with sharply different rho each step, so a same-step-rho bug
-        produces a visibly different trajectory than the correct one.
+        2016, eq. 20): the follow-on trace must advance on the PRIOR
+        transition's (rho, gamma) pair. The current call's ratio governs
+        only e_t, and its discount only the TD-error bootstrap. This test
+        isolates F_t (lambda=0 so M_t == F_t exactly) across three steps
+        with sharply different rho and gamma each step, so a same-step
+        pairing bug produces a visibly different trajectory than the
+        correct one.
         """
         learner = ETDLinearLearner(step_size=0.05, trace_decay=0.0)
         state = learner.init(1)
@@ -451,11 +456,12 @@ class TestETDLambda:
             )
             state = result.state
 
-        # F_1 = previous_rho(init=1.0) * 0.5 * F_0(=0) + 1 = 1.0
-        # F_2 = rho_1(=3.0) * 0.9 * F_1(=1.0) + 1 = 3.7
-        # F_3 = rho_2(=0.1) * 0.7 * F_2(=3.7) + 1 = 1.259
-        # (using rho_t instead of rho_{t-1} at each step gives F_3 = 4.052)
-        chex.assert_trees_all_close(state.follow_on_trace, jnp.float32(1.259), atol=1e-5)
+        # F_1 = previous_rho(1.0) * previous_gamma(1.0) * F_0(=0) + 1 = 1.0
+        # F_2 = rho_1(=3.0) * gamma_1(=0.5) * F_1(=1.0) + 1 = 2.5
+        # F_3 = rho_2(=0.1) * gamma_2(=0.9) * F_2(=2.5) + 1 = 1.225
+        # (pairing either factor with the CURRENT call's values instead
+        # gives F_3 = 4.052 with same-step rho or 1.259 with same-step gamma)
+        chex.assert_trees_all_close(state.follow_on_trace, jnp.float32(1.225), atol=1e-5)
 
     def test_update_is_jit_compatible(self) -> None:
         learner = ETDLinearLearner(step_size=0.05, trace_decay=0.5)
@@ -1025,12 +1031,19 @@ class TestZeroGammaDoesNotMultiplyInfBootstrap:
         assert bool(jnp.isfinite(result.state.bias_eligibility_trace))
 
     def test_etd_does_not_multiply_inf_follow_on(self) -> None:
-        """gamma=0 drops leftover F; 0 * inf must not freeze the ETD step."""
+        """previous_gamma=0 drops leftover F; 0 * inf must not freeze the step.
+
+        The current transition's gamma is nonzero, so both the follow-on
+        reset and the acceptance guard must key on the prior transition's
+        discount (the episode-boundary state), exactly like the sibling
+        gradient-TD trace test below.
+        """
         learner = ETDLinearLearner(step_size=0.1, trace_decay=0.4)
         state = learner.init(2).replace(  # type: ignore[attr-defined]
             follow_on_trace=jnp.asarray(jnp.inf, dtype=jnp.float32),
             eligibility_traces=jnp.full(2, jnp.inf, dtype=jnp.float32),
             bias_eligibility_trace=jnp.asarray(jnp.inf, dtype=jnp.float32),
+            previous_gamma=jnp.asarray(0.0, dtype=jnp.float32),
         )
         raw = jnp.asarray(0.0, dtype=jnp.float32) * jnp.asarray(jnp.inf, dtype=jnp.float32)
         assert not bool(jnp.isfinite(raw))
@@ -1039,16 +1052,22 @@ class TestZeroGammaDoesNotMultiplyInfBootstrap:
             state,
             jnp.array([0.5, -0.25], dtype=jnp.float32),
             jnp.array(1.0, dtype=jnp.float32),
-            jnp.array([jnp.inf, 0.0], dtype=jnp.float32),
-            jnp.array(0.0, dtype=jnp.float32),
+            jnp.array([0.25, 0.5], dtype=jnp.float32),
+            jnp.array(0.9, dtype=jnp.float32),
             jnp.array(1.0, dtype=jnp.float32),
         )
         assert bool(result.update_applied)
         assert bool(jnp.isfinite(result.state.follow_on_trace))
         chex.assert_tree_all_finite(result.state.eligibility_traces)
+        chex.assert_trees_all_close(result.state.previous_gamma, jnp.asarray(0.9))
 
-    def test_etd_zero_previous_rho_preserves_invalid_history_rejection(self) -> None:
-        """Zero previous ratio must not broaden adoption of corrupt prior state."""
+    def test_etd_zero_previous_rho_annihilates_unused_corrupt_follow_on(self) -> None:
+        """A zero incoming ratio zeroes F's carry-in per eq. 20 (rho_{t-1}=0).
+
+        The corrupt follow-on is multiplied by an exactly-zero previous
+        ratio, so the 0*inf product must not form and the step may adopt
+        the fresh interest as the new follow-on.
+        """
         learner = ETDLinearLearner(step_size=0.1, trace_decay=0.4)
         state = learner.init(2).replace(  # type: ignore[attr-defined]
             follow_on_trace=jnp.asarray(jnp.inf, dtype=jnp.float32),
@@ -1057,6 +1076,23 @@ class TestZeroGammaDoesNotMultiplyInfBootstrap:
         raw = jnp.asarray(0.0, dtype=jnp.float32) * jnp.asarray(jnp.inf, dtype=jnp.float32)
         assert not bool(jnp.isfinite(raw))
 
+        result = learner.update(
+            state,
+            jnp.array([0.5, -0.25], dtype=jnp.float32),
+            jnp.array(1.0, dtype=jnp.float32),
+            jnp.array([0.25, 0.5], dtype=jnp.float32),
+            jnp.array(0.9, dtype=jnp.float32),
+            jnp.array(1.0, dtype=jnp.float32),
+        )
+        assert bool(result.update_applied)
+        chex.assert_trees_all_close(result.state.follow_on_trace, jnp.float32(1.0))
+
+    def test_etd_corrupt_used_follow_on_still_rejected(self) -> None:
+        """A corrupt F that the advance actually uses must fail closed."""
+        learner = ETDLinearLearner(step_size=0.1, trace_decay=0.4)
+        state = learner.init(2).replace(  # type: ignore[attr-defined]
+            follow_on_trace=jnp.asarray(jnp.inf, dtype=jnp.float32),
+        )
         result = learner.update(
             state,
             jnp.array([0.5, -0.25], dtype=jnp.float32),
