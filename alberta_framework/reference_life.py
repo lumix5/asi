@@ -1166,9 +1166,22 @@ def _canonical_stationary_oracle(oracle_reward: float) -> float:
     vary across runners and permanently break scorecard aggregate validation
     (run 34950746882: 26 of 144 RiverSwim shards rejected with "does not
     match the canonical resolved components").  Round to a fixed decimal
-    lattice: the quantization error is at most 5e-13 relative, far below
-    every tolerance the oracle is consumed with, while the bound bytes stay
-    identical on every IEEE-754 host.
+    lattice of 12 significant digits: for a value in ``[10**e, 10**(e+1))``
+    the half-quantum rounding error is ``0.5 * 10**(e-11)``, i.e. at most
+    ``5e-12`` *relative* — far below every tolerance the oracle is consumed
+    with — while the bound bytes stay identical on every IEEE-754 host whose
+    lstsq results agree to much better than half a lattice quantum.
+
+    Twelve digits is chosen over a finer lattice deliberately: decimal
+    formatting has rounding boundaries, and a host pair landing on opposite
+    sides of one would produce different manifest bytes.  For the exact
+    scorecard configuration the measured oracle sits more than 2000 float64
+    ulps from the nearest 12-digit boundary, while the observed cross-host
+    disagreement is 1 ulp; 13 digits would shrink that margin to ~54 ulps.
+    ``tests/test_riverswim_oracle_manifest_stability.py`` pins the boundary
+    margin of the configured oracle, pins a boundary-straddling ulp pair so
+    the lattice's resolving power is explicit, and pins the historical
+    cross-host pair collapsing to one scalar.
     """
     canonical = float(f"{oracle_reward:.{_CANONICAL_ORACLE_SIGNIFICANT_DIGITS}g}")
     if not math.isfinite(canonical):
