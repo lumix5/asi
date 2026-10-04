@@ -144,6 +144,9 @@ if __name__ == "__main__":
 
 ```bash
 # from a clean worktree at f3d32c451ed1c1715e477ad56b782fc7ea89b206
+# assert the backend this environment record describes before any run:
+PYTHONPATH=<worktree> .venv/bin/python -c "import jax; assert jax.backends.backend == 'cpu'; print(jax.devices())"
+
 PYTHONPATH=<worktree> .venv/bin/python - <<'EOF'
 import numpy as np
 from sklearn.datasets import fetch_openml
@@ -158,23 +161,99 @@ y = np.ascontiguousarray(raw.target, dtype=np.int32)
 np.savez("mnist.npz", images=x, labels=y)
 EOF
 
-# save the driver above as run_grid.py, then:
+# fail fast if the derived pool differs from the pinned bytes
+printf '%s  mnist.npz\n' 9102d8f16ba6b99bfdaa69443012659946d573ccb481190de53b3a06818b899d | sha256sum -c -
+
+# save the driver above as run_grid.py, then run the grid with per-run exit
+# statuses captured and deterministic thread counts:
+export OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREADS=1
+: > statuses.txt
 for cell in A B; do
   if [ "$cell" = "A" ]; then seeds="15710 15711 15712 15713"; else seeds="15714 15715 15716 15717"; fi
   for seed in $seeds; do
     for arm in on off; do
-      PYTHONPATH=<worktree> OMP_NUM_THREADS=1 .venv/bin/python run_grid.py \
+      PYTHONPATH=<worktree> .venv/bin/python run_grid.py \
         mnist.npz "$cell" "$seed" "$arm" \
         > "receipt-cell${cell}-seed${seed}-${arm}.json" \
         2> "receipt-cell${cell}-seed${seed}-${arm}.stderr"
+      status=$?
+      printf 'cell%s seed%s %s exit=%s\n' "$cell" "$seed" "$arm" "$status" >> statuses.txt
+      [ "$status" -eq 0 ] || { echo "run failed; aborting" >&2; exit "$status"; }
     done
   done
 done
 ```
 
 Receipt files are the exact driver stdout bytes; `.stderr` files are the exact
-stderr bytes (all empty). Any nonzero exit or stderr content would have been
-retained as-is instead.
+stderr bytes (all empty); `statuses.txt` records every process exit status (all
+zero here). The loop aborts on the first nonzero exit instead of writing a
+partial grid silently.
+
+### Separate validation pass over the retained bytes
+
+Run this as its own process after the grid; it re-derives the dataset digests
+from the NPZ the same way the runner does, fails fast on any mismatch with the
+pinned per-cell values, and runs `validate_adalin_result` on every receipt:
+
+```bash
+PYTHONPATH=<worktree> OMP_NUM_THREADS=1 .venv/bin/python - <<'EOF'
+import glob
+import hashlib
+import json
+import sys
+
+import numpy as np
+
+from alberta_framework.benchmarks.adalin import validate_adalin_result
+
+PINNED_NPZ = "9102d8f16ba6b99bfdaa69443012659946d573ccb481190de53b3a06818b899d"
+PINNED_DATASET = {
+    "A": "7a36c86e7bce22bbc0cad4ad8458a5faef6630bae3d3031d4bdc300115949b94",
+    "B": "783414df00ccaba64a5c7ed216c1ac9b9adaee64e398d8294ada62db628735c1",
+}
+
+payload = np.load("mnist.npz", allow_pickle=False)
+images = np.ascontiguousarray(payload["images"], dtype=np.float32)
+labels = np.ascontiguousarray(payload["labels"], dtype=np.int32)
+
+
+def hash_arrays(*arrays):
+    # mirrors the runner's _hash_arrays over (train_x, train_y, test_x, test_y)
+    digest = hashlib.sha256()
+    for array in arrays:
+        digest.update(str(array.dtype).encode())
+        digest.update(str(array.shape).encode())
+        digest.update(array.tobytes(order="C"))
+    return digest.hexdigest()
+
+
+paths = sorted(glob.glob("receipt-cell*-seed*-*.json"))
+assert len(paths) == 16, paths
+for path in paths:
+    cell = path.split("cell")[1][0]
+    with open(path, encoding="utf-8") as handle:
+        result = json.load(handle)
+    n = result["config"]["examples_per_task"]
+    digest = hash_arrays(
+        images[:n], labels[:n], images[60_000:61_000], labels[60_000:61_000]
+    )
+    assert digest == PINNED_DATASET[cell], (path, digest)
+    assert result["dataset"]["sha256"] == PINNED_DATASET[cell], path
+    validate_adalin_result(result)
+print(f"validated {len(paths)} receipts")
+EOF
+```
+
+Any assertion or validator failure exits nonzero, so a reproducer cannot end
+with plausible but unvalidated bytes. Backends and versions are recorded in the
+Provenance table above; on a different JAX/NumPy build the numeric receipts may
+differ bitwise even when validation passes, which is why the digests above are
+pinned to this environment.
+
+This validation pass was itself re-executed against the retained bytes on
+2026-10-04 with a freshly downloaded dataset: the rebuilt NPZ reproduced the
+pinned derived digest, both per-cell dataset digests re-derived identically,
+and all 16 receipts passed `validate_adalin_result`.
 
 ## Cost
 

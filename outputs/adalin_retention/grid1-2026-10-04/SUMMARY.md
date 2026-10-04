@@ -41,13 +41,17 @@ Learned alphas converge to similar total magnitudes in every on run
 
 ## Honest reading
 
-- **The mechanism helps at both measured scales, and the advantage shrinks
-  with more data:** cell A (1024-example pool, 20 tasks) shows a large
-  +0.041 online / +0.044 test mean advantage; cell B (2048-example pool,
-  40 tasks, 4× the updates) retains the sign in every pair but the mean
-  advantage drops to +0.010 on both metrics. This grid cannot say where the
-  curve goes beyond its own bounds — the campaign-scale configuration
-  (200 × 5000, batch 1) remains unmeasured.
+- **The mechanism helps at both measured scales; the smaller advantage is a
+  larger-and-longer-schedule contrast, not an isolated data-size effect:**
+  cell A (1024-example pool, 20 tasks) shows a large +0.041 online / +0.044
+  test mean advantage; cell B (2048-example pool, 40 tasks) retains the sign
+  in every pair but the mean advantage drops to +0.010 on both metrics. Cell
+  A → B changes three axes at once — 2× the examples per task, 2× the tasks,
+  and 4× the updates per run (1280 → 5120) — so this grid **cannot attribute**
+  the advantage difference to data size, task count, or schedule length
+  individually; a controlled one-axis-at-a-time design would be needed for
+  that. The grid also cannot say where the curve goes beyond its own bounds —
+  the campaign-scale configuration (200 × 5000, batch 1) remains unmeasured.
 - **4 paired seeds is screening-grade,** not confirmation. No significance
   claim is made; the grid exists so the lane's first behavior is retained
   rather than unknown.
