@@ -1777,7 +1777,21 @@ class STOMPAgent:
         return self._config.to_config()
 
     def init(self, key: Array) -> STOMPState:
-        """Initialize agent state for a given observation dimensionality."""
+        """Initialize agent state for a given observation dimensionality.
+
+        Raises:
+            TypeError: If ``key`` is not a scalar typed JAX PRNG key.  The
+                state contract (``state_valid``) rejects every other key
+                shape, so accepting one here would prime an agent whose every
+                later transaction is silently dropped.
+        """
+        if not (
+            hasattr(key, "shape")
+            and hasattr(key, "dtype")
+            and key.shape == ()
+            and jax.dtypes.issubdtype(key.dtype, jax.dtypes.prng_key)
+        ):
+            raise TypeError("key must be a scalar typed JAX PRNG key")
         obs_dim = self._config.observation_dim
         n_prim = self._config.n_primitive_actions
         n_opt = self._config.n_options
