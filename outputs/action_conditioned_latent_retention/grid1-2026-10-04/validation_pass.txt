@@ -1,0 +1,26 @@
+PASS receipt-run1.json: validate_action_latent_payload accepted the receipt
+PASS receipt-run2.json: validate_action_latent_payload accepted the receipt
+PASS receipt-run3.json: validate_action_latent_payload accepted the receipt
+PASS all 3 fresh-process receipts are bitwise identical (sha256 18c79e63252b8cdb...)
+PASS receipt marks development_only=true
+PASS receipt marks scientific_promotion_allowed=false
+PASS receipt covers exactly the six frozen arms x four frozen development seeds
+PASS arm roster matches FROZEN_ARM_IDS
+PASS seed 1575000: decision-off action/reward hashes equal mechanism-off
+PASS seed 1575001: decision-off action/reward hashes equal mechanism-off
+PASS seed 1575002: decision-off action/reward hashes equal mechanism-off
+PASS seed 1575003: decision-off action/reward hashes equal mechanism-off
+PASS seed 1575000: environment_steps matched across all arms ({256})
+PASS seed 1575000: model_updates/training_queries matched across the four model-owning arms
+PASS seed 1575001: environment_steps matched across all arms ({256})
+PASS seed 1575001: model_updates/training_queries matched across the four model-owning arms
+PASS seed 1575002: environment_steps matched across all arms ({256})
+PASS seed 1575002: model_updates/training_queries matched across the four model-owning arms
+PASS seed 1575003: environment_steps matched across all arms ({256})
+PASS seed 1575003: model_updates/training_queries matched across the four model-owning arms
+INFO latent_action_interactions: late-return paired deltas [-16.0, -9.0, 0.0, -4.0] (mean -7.25), return-sum paired deltas [4.0, -8.0, 24.0, -7.0]
+INFO latent_no_interactions: late-return paired deltas [11.0, 8.0, 9.0, 6.0] (mean +8.50), return-sum paired deltas [11.0, 3.0, -6.0, -3.0]
+INFO latent_action_masked: late-return paired deltas [11.0, 4.0, 5.0, 6.0] (mean +6.50), return-sum paired deltas [15.0, 8.0, -11.0, -5.0]
+INFO latent_decision_off: late-return paired deltas [0.0, 0.0, 0.0, 0.0] (mean +0.00), return-sum paired deltas [0.0, 0.0, 0.0, 0.0]
+PASS decision-off totals equal mechanism-off totals on every seed (learning-without-decisions is neutral)
+WROTE outputs/action_conditioned_latent_retention/grid1-2026-10-04/analysis_summary.json
