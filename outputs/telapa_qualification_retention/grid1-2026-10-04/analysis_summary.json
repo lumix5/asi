@@ -1,0 +1,638 @@
+{
+  "arms": [
+    "diverse_archive",
+    "one_model",
+    "fixed_snapshot",
+    "mechanism_off"
+  ],
+  "failures": [],
+  "grid": [
+    [
+      32,
+      4
+    ],
+    [
+      32,
+      8
+    ],
+    [
+      32,
+      16
+    ],
+    [
+      64,
+      4
+    ],
+    [
+      64,
+      8
+    ],
+    [
+      64,
+      16
+    ]
+  ],
+  "negative_outcome": {
+    "archive_arms_never_beat_mechanism_off": true,
+    "paired_delta_count": 36,
+    "tie_only_at_phase_length_16": false
+  },
+  "schema": "asi.telapa_qualification_smoke.development.v2",
+  "seeds": [
+    1586000,
+    1586001,
+    1586002
+  ],
+  "tables": {
+    "steps=32,phase=16": {
+      "archive_persistent_bytes": {
+        "diverse_archive": [
+          160,
+          160,
+          160
+        ],
+        "fixed_snapshot": [
+          80,
+          80,
+          80
+        ],
+        "mechanism_off": [
+          0,
+          0,
+          0
+        ],
+        "one_model": [
+          80,
+          80,
+          80
+        ]
+      },
+      "mean_rewards": {
+        "diverse_archive": [
+          0.46875,
+          0.46875,
+          0.46875
+        ],
+        "fixed_snapshot": [
+          0.46875,
+          0.46875,
+          0.46875
+        ],
+        "mechanism_off": [
+          0.46875,
+          0.46875,
+          0.46875
+        ],
+        "one_model": [
+          0.46875,
+          0.46875,
+          0.46875
+        ]
+      },
+      "paired": {
+        "diverse_archive": {
+          "mean_delta_vs_mechanism_off": 0.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "one_model": {
+          "mean_delta_vs_mechanism_off": 0.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      },
+      "phase_length": 16,
+      "reward_sums": {
+        "diverse_archive": [
+          15.0,
+          15.0,
+          15.0
+        ],
+        "fixed_snapshot": [
+          15.0,
+          15.0,
+          15.0
+        ],
+        "mechanism_off": [
+          15.0,
+          15.0,
+          15.0
+        ],
+        "one_model": [
+          15.0,
+          15.0,
+          15.0
+        ]
+      },
+      "steps": 32
+    },
+    "steps=32,phase=4": {
+      "archive_persistent_bytes": {
+        "diverse_archive": [
+          318,
+          318,
+          318
+        ],
+        "fixed_snapshot": [
+          79,
+          79,
+          79
+        ],
+        "mechanism_off": [
+          0,
+          0,
+          0
+        ],
+        "one_model": [
+          80,
+          80,
+          80
+        ]
+      },
+      "mean_rewards": {
+        "diverse_archive": [
+          0.40625,
+          0.40625,
+          0.40625
+        ],
+        "fixed_snapshot": [
+          0.46875,
+          0.46875,
+          0.46875
+        ],
+        "mechanism_off": [
+          0.46875,
+          0.46875,
+          0.46875
+        ],
+        "one_model": [
+          0.375,
+          0.375,
+          0.375
+        ]
+      },
+      "paired": {
+        "diverse_archive": {
+          "mean_delta_vs_mechanism_off": -2.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            -2.0,
+            -2.0,
+            -2.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            -2.0,
+            -2.0,
+            -2.0
+          ]
+        },
+        "one_model": {
+          "mean_delta_vs_mechanism_off": -3.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            -3.0,
+            -3.0,
+            -3.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            -3.0,
+            -3.0,
+            -3.0
+          ]
+        }
+      },
+      "phase_length": 4,
+      "reward_sums": {
+        "diverse_archive": [
+          13.0,
+          13.0,
+          13.0
+        ],
+        "fixed_snapshot": [
+          15.0,
+          15.0,
+          15.0
+        ],
+        "mechanism_off": [
+          15.0,
+          15.0,
+          15.0
+        ],
+        "one_model": [
+          12.0,
+          12.0,
+          12.0
+        ]
+      },
+      "steps": 32
+    },
+    "steps=32,phase=8": {
+      "archive_persistent_bytes": {
+        "diverse_archive": [
+          239,
+          239,
+          239
+        ],
+        "fixed_snapshot": [
+          79,
+          79,
+          79
+        ],
+        "mechanism_off": [
+          0,
+          0,
+          0
+        ],
+        "one_model": [
+          80,
+          80,
+          80
+        ]
+      },
+      "mean_rewards": {
+        "diverse_archive": [
+          0.46875,
+          0.46875,
+          0.46875
+        ],
+        "fixed_snapshot": [
+          0.46875,
+          0.46875,
+          0.46875
+        ],
+        "mechanism_off": [
+          0.46875,
+          0.46875,
+          0.46875
+        ],
+        "one_model": [
+          0.4375,
+          0.4375,
+          0.4375
+        ]
+      },
+      "paired": {
+        "diverse_archive": {
+          "mean_delta_vs_mechanism_off": 0.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "one_model": {
+          "mean_delta_vs_mechanism_off": -1.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            -1.0,
+            -1.0,
+            -1.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            -1.0,
+            -1.0,
+            -1.0
+          ]
+        }
+      },
+      "phase_length": 8,
+      "reward_sums": {
+        "diverse_archive": [
+          15.0,
+          15.0,
+          15.0
+        ],
+        "fixed_snapshot": [
+          15.0,
+          15.0,
+          15.0
+        ],
+        "mechanism_off": [
+          15.0,
+          15.0,
+          15.0
+        ],
+        "one_model": [
+          14.0,
+          14.0,
+          14.0
+        ]
+      },
+      "steps": 32
+    },
+    "steps=64,phase=16": {
+      "archive_persistent_bytes": {
+        "diverse_archive": [
+          240,
+          240,
+          240
+        ],
+        "fixed_snapshot": [
+          80,
+          80,
+          80
+        ],
+        "mechanism_off": [
+          0,
+          0,
+          0
+        ],
+        "one_model": [
+          80,
+          80,
+          80
+        ]
+      },
+      "mean_rewards": {
+        "diverse_archive": [
+          0.484375,
+          0.484375,
+          0.484375
+        ],
+        "fixed_snapshot": [
+          0.484375,
+          0.484375,
+          0.484375
+        ],
+        "mechanism_off": [
+          0.484375,
+          0.484375,
+          0.484375
+        ],
+        "one_model": [
+          0.46875,
+          0.46875,
+          0.46875
+        ]
+      },
+      "paired": {
+        "diverse_archive": {
+          "mean_delta_vs_mechanism_off": 0.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        "one_model": {
+          "mean_delta_vs_mechanism_off": -1.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            -1.0,
+            -1.0,
+            -1.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            -1.0,
+            -1.0,
+            -1.0
+          ]
+        }
+      },
+      "phase_length": 16,
+      "reward_sums": {
+        "diverse_archive": [
+          31.0,
+          31.0,
+          31.0
+        ],
+        "fixed_snapshot": [
+          31.0,
+          31.0,
+          31.0
+        ],
+        "mechanism_off": [
+          31.0,
+          31.0,
+          31.0
+        ],
+        "one_model": [
+          30.0,
+          30.0,
+          30.0
+        ]
+      },
+      "steps": 64
+    },
+    "steps=64,phase=4": {
+      "archive_persistent_bytes": {
+        "diverse_archive": [
+          318,
+          318,
+          318
+        ],
+        "fixed_snapshot": [
+          79,
+          79,
+          79
+        ],
+        "mechanism_off": [
+          0,
+          0,
+          0
+        ],
+        "one_model": [
+          80,
+          80,
+          80
+        ]
+      },
+      "mean_rewards": {
+        "diverse_archive": [
+          0.390625,
+          0.390625,
+          0.390625
+        ],
+        "fixed_snapshot": [
+          0.484375,
+          0.484375,
+          0.484375
+        ],
+        "mechanism_off": [
+          0.484375,
+          0.484375,
+          0.484375
+        ],
+        "one_model": [
+          0.375,
+          0.375,
+          0.375
+        ]
+      },
+      "paired": {
+        "diverse_archive": {
+          "mean_delta_vs_mechanism_off": -6.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            -6.0,
+            -6.0,
+            -6.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            -6.0,
+            -6.0,
+            -6.0
+          ]
+        },
+        "one_model": {
+          "mean_delta_vs_mechanism_off": -7.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            -7.0,
+            -7.0,
+            -7.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            -7.0,
+            -7.0,
+            -7.0
+          ]
+        }
+      },
+      "phase_length": 4,
+      "reward_sums": {
+        "diverse_archive": [
+          25.0,
+          25.0,
+          25.0
+        ],
+        "fixed_snapshot": [
+          31.0,
+          31.0,
+          31.0
+        ],
+        "mechanism_off": [
+          31.0,
+          31.0,
+          31.0
+        ],
+        "one_model": [
+          24.0,
+          24.0,
+          24.0
+        ]
+      },
+      "steps": 64
+    },
+    "steps=64,phase=8": {
+      "archive_persistent_bytes": {
+        "diverse_archive": [
+          319,
+          319,
+          319
+        ],
+        "fixed_snapshot": [
+          79,
+          79,
+          79
+        ],
+        "mechanism_off": [
+          0,
+          0,
+          0
+        ],
+        "one_model": [
+          80,
+          80,
+          80
+        ]
+      },
+      "mean_rewards": {
+        "diverse_archive": [
+          0.453125,
+          0.453125,
+          0.453125
+        ],
+        "fixed_snapshot": [
+          0.484375,
+          0.484375,
+          0.484375
+        ],
+        "mechanism_off": [
+          0.484375,
+          0.484375,
+          0.484375
+        ],
+        "one_model": [
+          0.4375,
+          0.4375,
+          0.4375
+        ]
+      },
+      "paired": {
+        "diverse_archive": {
+          "mean_delta_vs_mechanism_off": -2.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            -2.0,
+            -2.0,
+            -2.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            -2.0,
+            -2.0,
+            -2.0
+          ]
+        },
+        "one_model": {
+          "mean_delta_vs_mechanism_off": -3.0,
+          "reward_sum_deltas_vs_fixed_snapshot": [
+            -3.0,
+            -3.0,
+            -3.0
+          ],
+          "reward_sum_deltas_vs_mechanism_off": [
+            -3.0,
+            -3.0,
+            -3.0
+          ]
+        }
+      },
+      "phase_length": 8,
+      "reward_sums": {
+        "diverse_archive": [
+          29.0,
+          29.0,
+          29.0
+        ],
+        "fixed_snapshot": [
+          31.0,
+          31.0,
+          31.0
+        ],
+        "mechanism_off": [
+          31.0,
+          31.0,
+          31.0
+        ],
+        "one_model": [
+          28.0,
+          28.0,
+          28.0
+        ]
+      },
+      "steps": 64
+    }
+  },
+  "validator": "alberta_framework.benchmarks.telapa_qualification.validate_result",
+  "verdict": "all checks passed"
+}

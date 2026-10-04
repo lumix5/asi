@@ -1,0 +1,155 @@
+PASS receipt-run1.json: validate_result accepted (12 records replayed)
+PASS receipt-run2.json: validate_result accepted (12 records replayed)
+PASS receipt-run3.json: validate_result accepted (12 records replayed)
+PASS receipt-run4.json: validate_result accepted (12 records replayed)
+PASS receipt-run5.json: validate_result accepted (12 records replayed)
+PASS receipt-run6.json: validate_result accepted (12 records replayed)
+PASS grid covers exactly [(32, 4), (32, 8), (32, 16), (64, 4), (64, 8), (64, 16)]
+PASS receipt-run1.json: frozen hyperparameters unchanged ({'archive_byte_budget': 4096, 'min_latent_distance': 0.05, 'learning_rate': 0.125})
+PASS receipt-run1.json: seeds are the frozen development roster [1586000, 1586001, 1586002]
+PASS receipt-run1.json: schema is the current asi.telapa_qualification_smoke.development.v2
+PASS receipt-run1.json: scientific_promotion_allowed remains false
+PASS receipt-run1.json: paper_parity_claimed remains false
+PASS receipt-run1.json: performance_claimed remains false
+PASS receipt-run2.json: frozen hyperparameters unchanged ({'archive_byte_budget': 4096, 'min_latent_distance': 0.05, 'learning_rate': 0.125})
+PASS receipt-run2.json: seeds are the frozen development roster [1586000, 1586001, 1586002]
+PASS receipt-run2.json: schema is the current asi.telapa_qualification_smoke.development.v2
+PASS receipt-run2.json: scientific_promotion_allowed remains false
+PASS receipt-run2.json: paper_parity_claimed remains false
+PASS receipt-run2.json: performance_claimed remains false
+PASS receipt-run3.json: frozen hyperparameters unchanged ({'archive_byte_budget': 4096, 'min_latent_distance': 0.05, 'learning_rate': 0.125})
+PASS receipt-run3.json: seeds are the frozen development roster [1586000, 1586001, 1586002]
+PASS receipt-run3.json: schema is the current asi.telapa_qualification_smoke.development.v2
+PASS receipt-run3.json: scientific_promotion_allowed remains false
+PASS receipt-run3.json: paper_parity_claimed remains false
+PASS receipt-run3.json: performance_claimed remains false
+PASS receipt-run4.json: frozen hyperparameters unchanged ({'archive_byte_budget': 4096, 'min_latent_distance': 0.05, 'learning_rate': 0.125})
+PASS receipt-run4.json: seeds are the frozen development roster [1586000, 1586001, 1586002]
+PASS receipt-run4.json: schema is the current asi.telapa_qualification_smoke.development.v2
+PASS receipt-run4.json: scientific_promotion_allowed remains false
+PASS receipt-run4.json: paper_parity_claimed remains false
+PASS receipt-run4.json: performance_claimed remains false
+PASS receipt-run5.json: frozen hyperparameters unchanged ({'archive_byte_budget': 4096, 'min_latent_distance': 0.05, 'learning_rate': 0.125})
+PASS receipt-run5.json: seeds are the frozen development roster [1586000, 1586001, 1586002]
+PASS receipt-run5.json: schema is the current asi.telapa_qualification_smoke.development.v2
+PASS receipt-run5.json: scientific_promotion_allowed remains false
+PASS receipt-run5.json: paper_parity_claimed remains false
+PASS receipt-run5.json: performance_claimed remains false
+PASS receipt-run6.json: frozen hyperparameters unchanged ({'archive_byte_budget': 4096, 'min_latent_distance': 0.05, 'learning_rate': 0.125})
+PASS receipt-run6.json: seeds are the frozen development roster [1586000, 1586001, 1586002]
+PASS receipt-run6.json: schema is the current asi.telapa_qualification_smoke.development.v2
+PASS receipt-run6.json: scientific_promotion_allowed remains false
+PASS receipt-run6.json: paper_parity_claimed remains false
+PASS receipt-run6.json: performance_claimed remains false
+PASS receipt-run1.json: identity.lane_source_sha256 matches receipt-run1
+PASS receipt-run1.json: identity.dependency_source_sha256 matches receipt-run1
+PASS receipt-run1.json: identity.runtime_identity matches receipt-run1
+PASS receipt-run1.json: identity.dependency_versions matches receipt-run1
+PASS receipt-run1.json: identity.paper_registry_sha256 matches receipt-run1
+PASS receipt-run2.json: identity.lane_source_sha256 matches receipt-run1
+PASS receipt-run2.json: identity.dependency_source_sha256 matches receipt-run1
+PASS receipt-run2.json: identity.runtime_identity matches receipt-run1
+PASS receipt-run2.json: identity.dependency_versions matches receipt-run1
+PASS receipt-run2.json: identity.paper_registry_sha256 matches receipt-run1
+PASS receipt-run3.json: identity.lane_source_sha256 matches receipt-run1
+PASS receipt-run3.json: identity.dependency_source_sha256 matches receipt-run1
+PASS receipt-run3.json: identity.runtime_identity matches receipt-run1
+PASS receipt-run3.json: identity.dependency_versions matches receipt-run1
+PASS receipt-run3.json: identity.paper_registry_sha256 matches receipt-run1
+PASS receipt-run4.json: identity.lane_source_sha256 matches receipt-run1
+PASS receipt-run4.json: identity.dependency_source_sha256 matches receipt-run1
+PASS receipt-run4.json: identity.runtime_identity matches receipt-run1
+PASS receipt-run4.json: identity.dependency_versions matches receipt-run1
+PASS receipt-run4.json: identity.paper_registry_sha256 matches receipt-run1
+PASS receipt-run5.json: identity.lane_source_sha256 matches receipt-run1
+PASS receipt-run5.json: identity.dependency_source_sha256 matches receipt-run1
+PASS receipt-run5.json: identity.runtime_identity matches receipt-run1
+PASS receipt-run5.json: identity.dependency_versions matches receipt-run1
+PASS receipt-run5.json: identity.paper_registry_sha256 matches receipt-run1
+PASS receipt-run6.json: identity.lane_source_sha256 matches receipt-run1
+PASS receipt-run6.json: identity.dependency_source_sha256 matches receipt-run1
+PASS receipt-run6.json: identity.runtime_identity matches receipt-run1
+PASS receipt-run6.json: identity.dependency_versions matches receipt-run1
+PASS receipt-run6.json: identity.paper_registry_sha256 matches receipt-run1
+PASS the six distinct configs bind six distinct workload digests
+PASS steps=32,phase=4, seed 1586000: mechanism-off parity exact on all five transcript fields
+PASS steps=32,phase=4, seed 1586001: mechanism-off parity exact on all five transcript fields
+PASS steps=32,phase=4, seed 1586002: mechanism-off parity exact on all five transcript fields
+PASS steps=32,phase=4: environment_steps matched across all arms and seeds ({32})
+PASS steps=32,phase=4: observations_consumed matched across all arms and seeds ({32})
+PASS steps=32,phase=4: policy_updates matched across all arms and seeds ({32})
+PASS steps=32,phase=4: policy_queries matched across all arms and seeds ({32})
+PASS steps=32,phase=4: descriptor_model_queries matched across all arms and seeds ({8})
+PASS steps=32,phase=4: task_boundary_disclosures matched across all arms and seeds ({8})
+PASS steps=32,phase=4: diverse archive retains 318 of the 4096-byte budget
+PASS steps=32,phase=4: mechanism-off retains zero archive bytes
+INFO steps=32,phase=4 diverse_archive: paired deltas vs mechanism-off [-2.0, -2.0, -2.0] (mean -2.00)
+INFO steps=32,phase=4 one_model: paired deltas vs mechanism-off [-3.0, -3.0, -3.0] (mean -3.00)
+PASS steps=32,phase=8, seed 1586000: mechanism-off parity exact on all five transcript fields
+PASS steps=32,phase=8, seed 1586001: mechanism-off parity exact on all five transcript fields
+PASS steps=32,phase=8, seed 1586002: mechanism-off parity exact on all five transcript fields
+PASS steps=32,phase=8: environment_steps matched across all arms and seeds ({32})
+PASS steps=32,phase=8: observations_consumed matched across all arms and seeds ({32})
+PASS steps=32,phase=8: policy_updates matched across all arms and seeds ({32})
+PASS steps=32,phase=8: policy_queries matched across all arms and seeds ({32})
+PASS steps=32,phase=8: descriptor_model_queries matched across all arms and seeds ({4})
+PASS steps=32,phase=8: task_boundary_disclosures matched across all arms and seeds ({4})
+PASS steps=32,phase=8: diverse archive retains 239 of the 4096-byte budget
+PASS steps=32,phase=8: mechanism-off retains zero archive bytes
+INFO steps=32,phase=8 diverse_archive: paired deltas vs mechanism-off [0.0, 0.0, 0.0] (mean +0.00)
+INFO steps=32,phase=8 one_model: paired deltas vs mechanism-off [-1.0, -1.0, -1.0] (mean -1.00)
+PASS steps=32,phase=16, seed 1586000: mechanism-off parity exact on all five transcript fields
+PASS steps=32,phase=16, seed 1586001: mechanism-off parity exact on all five transcript fields
+PASS steps=32,phase=16, seed 1586002: mechanism-off parity exact on all five transcript fields
+PASS steps=32,phase=16: environment_steps matched across all arms and seeds ({32})
+PASS steps=32,phase=16: observations_consumed matched across all arms and seeds ({32})
+PASS steps=32,phase=16: policy_updates matched across all arms and seeds ({32})
+PASS steps=32,phase=16: policy_queries matched across all arms and seeds ({32})
+PASS steps=32,phase=16: descriptor_model_queries matched across all arms and seeds ({2})
+PASS steps=32,phase=16: task_boundary_disclosures matched across all arms and seeds ({2})
+PASS steps=32,phase=16: diverse archive retains 160 of the 4096-byte budget
+PASS steps=32,phase=16: mechanism-off retains zero archive bytes
+INFO steps=32,phase=16 diverse_archive: paired deltas vs mechanism-off [0.0, 0.0, 0.0] (mean +0.00)
+INFO steps=32,phase=16 one_model: paired deltas vs mechanism-off [0.0, 0.0, 0.0] (mean +0.00)
+PASS steps=64,phase=4, seed 1586000: mechanism-off parity exact on all five transcript fields
+PASS steps=64,phase=4, seed 1586001: mechanism-off parity exact on all five transcript fields
+PASS steps=64,phase=4, seed 1586002: mechanism-off parity exact on all five transcript fields
+PASS steps=64,phase=4: environment_steps matched across all arms and seeds ({64})
+PASS steps=64,phase=4: observations_consumed matched across all arms and seeds ({64})
+PASS steps=64,phase=4: policy_updates matched across all arms and seeds ({64})
+PASS steps=64,phase=4: policy_queries matched across all arms and seeds ({64})
+PASS steps=64,phase=4: descriptor_model_queries matched across all arms and seeds ({16})
+PASS steps=64,phase=4: task_boundary_disclosures matched across all arms and seeds ({16})
+PASS steps=64,phase=4: diverse archive retains 318 of the 4096-byte budget
+PASS steps=64,phase=4: mechanism-off retains zero archive bytes
+INFO steps=64,phase=4 diverse_archive: paired deltas vs mechanism-off [-6.0, -6.0, -6.0] (mean -6.00)
+INFO steps=64,phase=4 one_model: paired deltas vs mechanism-off [-7.0, -7.0, -7.0] (mean -7.00)
+PASS steps=64,phase=8, seed 1586000: mechanism-off parity exact on all five transcript fields
+PASS steps=64,phase=8, seed 1586001: mechanism-off parity exact on all five transcript fields
+PASS steps=64,phase=8, seed 1586002: mechanism-off parity exact on all five transcript fields
+PASS steps=64,phase=8: environment_steps matched across all arms and seeds ({64})
+PASS steps=64,phase=8: observations_consumed matched across all arms and seeds ({64})
+PASS steps=64,phase=8: policy_updates matched across all arms and seeds ({64})
+PASS steps=64,phase=8: policy_queries matched across all arms and seeds ({64})
+PASS steps=64,phase=8: descriptor_model_queries matched across all arms and seeds ({8})
+PASS steps=64,phase=8: task_boundary_disclosures matched across all arms and seeds ({8})
+PASS steps=64,phase=8: diverse archive retains 319 of the 4096-byte budget
+PASS steps=64,phase=8: mechanism-off retains zero archive bytes
+INFO steps=64,phase=8 diverse_archive: paired deltas vs mechanism-off [-2.0, -2.0, -2.0] (mean -2.00)
+INFO steps=64,phase=8 one_model: paired deltas vs mechanism-off [-3.0, -3.0, -3.0] (mean -3.00)
+PASS steps=64,phase=16, seed 1586000: mechanism-off parity exact on all five transcript fields
+PASS steps=64,phase=16, seed 1586001: mechanism-off parity exact on all five transcript fields
+PASS steps=64,phase=16, seed 1586002: mechanism-off parity exact on all five transcript fields
+PASS steps=64,phase=16: environment_steps matched across all arms and seeds ({64})
+PASS steps=64,phase=16: observations_consumed matched across all arms and seeds ({64})
+PASS steps=64,phase=16: policy_updates matched across all arms and seeds ({64})
+PASS steps=64,phase=16: policy_queries matched across all arms and seeds ({64})
+PASS steps=64,phase=16: descriptor_model_queries matched across all arms and seeds ({4})
+PASS steps=64,phase=16: task_boundary_disclosures matched across all arms and seeds ({4})
+PASS steps=64,phase=16: diverse archive retains 240 of the 4096-byte budget
+PASS steps=64,phase=16: mechanism-off retains zero archive bytes
+INFO steps=64,phase=16 diverse_archive: paired deltas vs mechanism-off [0.0, 0.0, 0.0] (mean +0.00)
+INFO steps=64,phase=16 one_model: paired deltas vs mechanism-off [-1.0, -1.0, -1.0] (mean -1.00)
+PASS default config (32, 4) reproduces the #2257 retained reward sums ({'diverse_archive': 13, 'one_model': 12, 'fixed_snapshot': 15, 'mechanism_off': 15}) on every seed
+PASS all 36 paired archive-vs-mechanism-off deltas are <= 0 (negative outcome retained)
+WROTE outputs/telapa_qualification_retention/grid1-2026-10-04/analysis_summary.json
