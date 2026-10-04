@@ -1152,6 +1152,30 @@ class SwitchingTwoStateReferenceEnvironment:
             )
 
 
+_CANONICAL_ORACLE_SIGNIFICANT_DIGITS = 12
+
+
+def _canonical_stationary_oracle(oracle_reward: float) -> float:
+    """Bind the exact stationary oracle to a host-stable scalar.
+
+    ``RiverSwimMDP.optimal_average_reward`` solves the stationary
+    distribution through ``numpy.linalg.lstsq``, and LAPACK's last unit in
+    the last place depends on the computing host's BLAS kernel.  The oracle
+    is embedded in the environment manifest, so a host-dependent tail would
+    make ``config_sha256``, ``manifest_id``, and every sha256 bound to them
+    vary across runners and permanently break scorecard aggregate validation
+    (run 34950746882: 26 of 144 RiverSwim shards rejected with "does not
+    match the canonical resolved components").  Round to a fixed decimal
+    lattice: the quantization error is at most 5e-13 relative, far below
+    every tolerance the oracle is consumed with, while the bound bytes stay
+    identical on every IEEE-754 host.
+    """
+    canonical = float(f"{oracle_reward:.{_CANONICAL_ORACLE_SIGNIFICANT_DIGITS}g}")
+    if not math.isfinite(canonical):
+        raise ValueError("RiverSwim canonical stationary oracle must be finite")
+    return canonical
+
+
 class _ImmutableRiverSwimMDP(RiverSwimMDP):
     """RiverSwim kernel whose behavior-defining fields cannot drift in-process."""
 
@@ -1279,6 +1303,7 @@ class RiverSwimReferenceEnvironment:
         oracle_reward = environment.optimal_average_reward()
         if not math.isfinite(oracle_reward):
             raise ValueError("RiverSwim exact stationary oracle must be finite")
+        oracle_reward = _canonical_stationary_oracle(oracle_reward)
         self._environment = environment
         self._oracle_reward = oracle_reward
         self._manifest = ReferenceEnvironmentManifest.from_config(
