@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added the hard-disabled, permanently nonpromoting noise-curvature campaign
+  contract (#1567): a frozen fresh-seed roster (`1_567_001`-`1_567_003`), the
+  canonical OpenML MNIST materialization digest, explicit per-seed
+  schedule/init identities derived from the runner's exact Threefry streams,
+  exact per-shard resource accounting, a reservation-first immutable plan
+  publication gate, a durable failed-dispatch disposition record, minimal
+  separately-protocolled live-control rows, and the frozen mechanism/causal/
+  hillclimb paired 95% confidence gates with an `asi-noise-curvature-campaign`
+  CLI. Execution remains explicitly unauthorized; no shard, aggregate, or
+  outcome exists.
+
 - Added the execution-gated `asi-bimu-matched-development` campaign for the
   bounded five-task BiMU mechanism-on versus memory-off comparison. Its fixed
   six-shard namespace, fresh-process roster, paired outcome rule, validators,
