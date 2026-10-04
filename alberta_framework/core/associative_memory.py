@@ -538,9 +538,19 @@ def _masked_softmax(logits: Array, mask: Array) -> Array:
 
 def _cross_entropy_from_logits(logits: Array, label: Array) -> Array:
     safe_label = jnp.clip(label.astype(jnp.int32), 0, logits.shape[0] - 1)
-    shifted = logits - jnp.max(logits)
-    log_z = jnp.log(jnp.sum(jnp.exp(shifted))) + jnp.max(logits)
-    return log_z - logits[safe_label]
+    # Cross entropy is shift invariant, so every maximum subtraction below is
+    # exact. A backend whose compiler re-forms a scaled product inside the
+    # max-subtraction fusion turns the difference at the maximum into the
+    # rounding error of that product instead of an exact zero (#2885), and
+    # neither shift alone covers both recomputations: the operand-side
+    # centering at the two producers below makes the maximum entry exactly
+    # zero before any product is formed, and this product-side shift blocks
+    # recomputation of the subtraction itself. The stopped gradient keeps the
+    # construction's gradient equal to the plain cross-entropy gradient.
+    centered = logits - jax.lax.stop_gradient(jnp.max(logits))
+    shifted = centered - jnp.max(centered)
+    log_z = jnp.log(jnp.sum(jnp.exp(shifted))) + jnp.max(centered)
+    return log_z - centered[safe_label]
 
 
 class AssociativeMemoryLearner:
@@ -812,7 +822,12 @@ class AssociativeMemoryLearner:
 
     def _weighted_feature_loss(self, row_values: Array, weights: Array, label: Array) -> Array:
         evidence = jnp.sum(weights[:, None] * row_values, axis=0)
-        logits = self._config.logit_scale * evidence
+        # Same operand-side centering as ``row_step``: the scaled product must
+        # not be the immediate producer of the max-subtraction operand
+        # (#2885). Shift invariance keeps the exact loss value unchanged, and
+        # the zero-weight fallback below still evaluates to the uniform loss.
+        centered_evidence = evidence - jax.lax.stop_gradient(jnp.max(evidence))
+        logits = self._config.logit_scale * centered_evidence
         total_weight = jnp.sum(weights)
         if self._config.normalize_by_weight:
             logits = jnp.where(total_weight > 0.0, logits / total_weight, logits)
@@ -1090,7 +1105,13 @@ class AssociativeMemoryLearner:
             slot_values = carry.values[slot]
             old_row = jnp.where(found_scalar, slot_values, jnp.zeros_like(slot_values))
             old_utility = jnp.where(found_scalar, carry.utility[slot], 0.0)
-            row_logits = self._config.logit_scale * old_row
+            # Center the operand before the logit_scale product: this makes
+            # the maximum entry an exact zero before any product is formed,
+            # so a backend that re-forms the product inside the fusion (#2885)
+            # still subtracts an exact zero at the maximum. The feature loss
+            # is shift invariant, so the exact value is unchanged.
+            centered_row = old_row - jax.lax.stop_gradient(jnp.max(old_row))
+            row_logits = self._config.logit_scale * centered_row
             feature_loss = jnp.where(
                 found_scalar,
                 _cross_entropy_from_logits(row_logits, label),
