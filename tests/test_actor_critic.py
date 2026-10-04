@@ -626,3 +626,49 @@ def test_actor_critic_state_contract_and_counter_saturation() -> None:
     )
     assert bool(result.update_applied)
     assert int(result.state.step_count) == 2**31 - 1
+
+
+@pytest.mark.parametrize("bad_value", [np.nan, np.inf, -np.inf])
+def test_actor_critic_start_rejects_nonfinite_observation(bad_value: float) -> None:
+    """The public start boundary refuses non-finite observations.
+
+    ``start`` is the one public path that commits the observation into
+    persistent state without a runtime gate: a non-finite value accepted here
+    poisons ``last_observation`` and permanently wedges every later update
+    (each is rejected by the state-finiteness gate with the state bitwise
+    unchanged). The boundary therefore fails closed eagerly, matching the
+    recurrent-trace actor-critic start contract.
+    """
+    agent = ActorCriticAgent(ActorCriticConfig(n_actions=2))
+    state = agent.init(3, jr.key(0))
+    bad_observation = jnp.array([1.0, bad_value, 0.5], dtype=jnp.float32)
+    with pytest.raises(ValueError, match="finite"):
+        agent.start(state, bad_observation)
+
+
+def test_actor_critic_start_nonfinite_observation_would_wedge_updates() -> None:
+    """Document the wedge the start gate prevents (traced inputs, pre-fix).
+
+    Under tracing the eager gate passes through and the runtime update gate
+    stays authoritative. A NaN start observation committed by the old code
+    made every subsequent valid update return ``update_applied=False`` with
+    the state bitwise frozen; this test pins the runtime-gate recovery for a
+    mid-stream NaN *update* row and is kept for the boundary semantics.
+    """
+    agent = ActorCriticAgent(ActorCriticConfig(n_actions=2))
+    state = agent.init(2, jr.key(0))
+    observations = jnp.array(
+        [[1.0, 0.0], [np.nan, 1.0], [1.0, 0.0]], dtype=jnp.float32
+    )
+    rewards = jnp.ones((3,), dtype=jnp.float32)
+    next_observations = jnp.zeros((3, 2), dtype=jnp.float32)
+    discounts = jnp.ones((3,), dtype=jnp.float32)
+    result = run_actor_critic_from_arrays(
+        agent, state, observations, rewards, None, next_observations, discounts=discounts
+    )
+    applied = np.asarray(result.updates_applied)
+    # The NaN row itself is rejected by the runtime gate and the scan
+    # recovers on the following valid row: only a committed NaN
+    # ``last_observation`` (the old start behavior) wedged permanently.
+    assert not applied[1]
+    assert applied[0] and applied[2]

@@ -269,6 +269,21 @@ def _trusted_shape(name: str, value: object) -> tuple[int, ...]:
     return tuple(cast(Array, value).shape)
 
 
+def _require_concrete_finite(name: str, array: Array) -> Array:
+    """Reject non-finite values at an eager public boundary.
+
+    ``start`` is the only public path that commits an observation into
+    persistent state without a runtime gate, so a non-finite value accepted
+    there would poison ``last_observation`` and permanently reject every
+    later update through the state-finiteness gate. Traced inputs pass
+    through: under ``jax.jit`` or ``scan`` tracing the runtime update-side
+    finiteness gates remain authoritative.
+    """
+    if not isinstance(array, jax.core.Tracer) and not bool(jnp.all(jnp.isfinite(array))):
+        raise ValueError(f"{name} must contain only finite values")
+    return array
+
+
 def _checked_terminated(name: str, value: object) -> Array:
     """Validate a ``terminated`` flag array dtype before boolean coercion."""
     actual_type = type(value)
@@ -695,14 +710,30 @@ class ActorCriticAgent:
         ).astype(jnp.int32)
         return action, key, probs
 
-    @functools.partial(jax.jit, static_argnums=(0,))
     def start(
         self,
         state: ActorCriticState,
         observation: Array,
     ) -> tuple[ActorCriticState, Int[Array, ""], Float[Array, " n_actions"]]:
-        """Select and store the first action for a new stream or episode."""
-        observation = self._observation(state, observation)
+        """Select and store the first action for a new stream or episode.
+
+        The observation is validated eagerly at this state-committing
+        boundary: a non-finite value would otherwise be stored in
+        ``last_observation`` and reject every later update with the state
+        bitwise frozen. Traced inputs pass through to the runtime gates.
+        """
+        observation = _require_concrete_finite(
+            "observation", self._observation(state, observation)
+        )
+        return self._start(state, observation)  # type: ignore[no-any-return]
+
+    @functools.partial(jax.jit, static_argnums=(0,))
+    def _start(
+        self,
+        state: ActorCriticState,
+        observation: Array,
+    ) -> tuple[ActorCriticState, Int[Array, ""], Float[Array, " n_actions"]]:
+        """Jitted implementation of one checked episode start."""
         action, key, probs = self.select_action(state, observation)
         new_state = state.replace(  # type: ignore[attr-defined]
             last_observation=observation,
@@ -1509,7 +1540,6 @@ class ContinuousActorCriticAgent:
         action = self._maybe_clip_action(raw_action)
         return action, key, mean, sigma
 
-    @functools.partial(jax.jit, static_argnums=(0,))
     def start(
         self,
         state: ContinuousActorCriticState,
@@ -1520,8 +1550,31 @@ class ContinuousActorCriticAgent:
         Float[Array, " action_dim"],
         Float[Array, " action_dim"],
     ]:
-        """Select and store the first action for a new stream or episode."""
-        observation = self._observation(state, observation)
+        """Select and store the first action for a new stream or episode.
+
+        The observation is validated eagerly at this state-committing
+        boundary, matching the discrete agent's start contract: a non-finite
+        value would otherwise be stored in ``last_observation`` and reject
+        every later update with the state bitwise frozen. Traced inputs pass
+        through to the runtime gates.
+        """
+        observation = _require_concrete_finite(
+            "observation", self._observation(state, observation)
+        )
+        return self._start(state, observation)  # type: ignore[no-any-return]
+
+    @functools.partial(jax.jit, static_argnums=(0,))
+    def _start(
+        self,
+        state: ContinuousActorCriticState,
+        observation: Array,
+    ) -> tuple[
+        ContinuousActorCriticState,
+        Float[Array, " action_dim"],
+        Float[Array, " action_dim"],
+        Float[Array, " action_dim"],
+    ]:
+        """Jitted implementation of one checked episode start."""
         action, key, mean, sigma = self.select_action(state, observation)
         new_state = state.replace(  # type: ignore[attr-defined]
             last_observation=observation,
