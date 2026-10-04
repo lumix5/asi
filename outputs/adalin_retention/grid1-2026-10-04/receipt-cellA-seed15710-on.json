@@ -1,0 +1,156 @@
+{
+  "arm": "adalin",
+  "comparison": {
+    "boundary_difference": "paper and this runner do not pass task identity or boundary events to the learner; the runner uses boundaries only to transform/evaluate data",
+    "paper_comparable": false,
+    "residual_gaps": [
+      "the pinned official commit contains no implementation or experiment config",
+      "the runner input is caller-supplied and does not bind official MNIST bytes or the paper's unspecified sampled indices",
+      "the paper does not specify pixel/example permutation seeds or exact dataloader order",
+      "one result is one consumed development seed rather than the paper's three final evaluation seeds",
+      "ASI records whole-stream pre-update accuracy separately from the paper's per-task train/test summaries"
+    ],
+    "schedule_difference": "paper: 400x10000, batch16, one epoch; ASI campaign: 200x5000, batch1; this result uses its embedded config"
+  },
+  "config": {
+    "batch_size": 16,
+    "classes": 10,
+    "epochs_per_task": 1,
+    "examples_per_task": 1024,
+    "hidden_widths": [
+      100,
+      100
+    ],
+    "learning_rate": 0.01,
+    "tasks": 20
+  },
+  "dataset": {
+    "classes": 10,
+    "input_dim": 784,
+    "sha256": "7a36c86e7bce22bbc0cad4ad8458a5faef6630bae3d3031d4bdc300115949b94",
+    "test_examples": 1000,
+    "train_examples": 1024
+  },
+  "metrics": {
+    "asi_whole_stream_preupdate_online_accuracy": 0.50166015625,
+    "paper_current_task_test_accuracy_mean": 0.6251,
+    "task_postupdate_test_accuracy": [
+      0.572,
+      0.585,
+      0.613,
+      0.612,
+      0.617,
+      0.583,
+      0.636,
+      0.645,
+      0.63,
+      0.658,
+      0.609,
+      0.652,
+      0.644,
+      0.664,
+      0.668,
+      0.647,
+      0.597,
+      0.623,
+      0.625,
+      0.622
+    ],
+    "task_preupdate_online_accuracy": [
+      0.4267578125,
+      0.4560546875,
+      0.4423828125,
+      0.47265625,
+      0.4453125,
+      0.4765625,
+      0.4453125,
+      0.5322265625,
+      0.525390625,
+      0.51953125,
+      0.5,
+      0.5078125,
+      0.5546875,
+      0.56640625,
+      0.556640625,
+      0.5224609375,
+      0.4716796875,
+      0.51171875,
+      0.5498046875,
+      0.5498046875
+    ]
+  },
+  "policy": {
+    "development_only": true,
+    "negative_outcomes_retained": true,
+    "scientific_promotion_allowed": false,
+    "status": "development-only-nonpromoting"
+  },
+  "protocol": {
+    "asi_batch_size": 1,
+    "asi_examples_per_task": 5000,
+    "asi_hidden_widths": [
+      300,
+      150
+    ],
+    "asi_target_tasks": 200,
+    "development_only": true,
+    "environment_steps_accounting_required": true,
+    "finite_kernel_preflight_required": true,
+    "learner_observes_task_boundary": false,
+    "matched_axes": [
+      "seed",
+      "updates",
+      "observations"
+    ],
+    "mechanism_off": "alpha_zero_exact_base_activation",
+    "model_queries_accounting_required": true,
+    "official_commit": "011469138bc22bf82955b16d68f33e4fbd04e3f8",
+    "official_commit_audit": "single README.md blob containing '# AdaLin'; no runnable code",
+    "official_repository": "https://github.com/RoozbehRazavi/AdaLin",
+    "paper_batch_size": 16,
+    "paper_examples_per_task": 10000,
+    "paper_hidden_widths": [
+      100,
+      100
+    ],
+    "paper_pmnist_tasks": 400,
+    "paper_revision": "arXiv:2505.09486v1",
+    "paper_revision_date": "2025-05-14",
+    "paper_url": "https://arxiv.org/abs/2505.09486v1",
+    "persistent_bytes_accounting_required": true,
+    "schema": "asi.adalin.protocol.v1",
+    "scientific_promotion_allowed": false,
+    "timing_is_telemetry_only": true
+  },
+  "provenance": {
+    "final_state_sha256": "2c12ceddffd16285bee55cf3a6663c695d7004dedd36b840ebbe2f44e1dab9a7",
+    "implementation_sha256": "64df8ddcdc6fef2fe80fde47c2785019d2e8326a9223e58e98f1ea79a90a8704",
+    "initial_state_sha256": "151b1fe884f8e8601bacceae5c06d2ca61907b956f589d95f6d8898790b66249",
+    "official_commit": "011469138bc22bf82955b16d68f33e4fbd04e3f8",
+    "official_commit_audit": "single README.md blob containing '# AdaLin'; no runnable code",
+    "official_repository": "https://github.com/RoozbehRazavi/AdaLin",
+    "paper": "https://arxiv.org/abs/2505.09486v1",
+    "schedule_sha256": "eaba2a95b60e5adc841c85478a7b50171896ce0e9923aae016471bd087698a0e"
+  },
+  "resources": {
+    "environment_data_steps": 20480,
+    "label_queries": 20480,
+    "model_forward_calls": 1300,
+    "model_queries": 40480,
+    "observations": 20480,
+    "optimizer_updates": 1280,
+    "timing_qualified": false,
+    "wall_clock_seconds_telemetry": 29.74374517099932
+  },
+  "schema": "asi.adalin.pmnist-development-result.v1",
+  "seed": 15710,
+  "state": {
+    "alpha_bytes": 800,
+    "final_alpha_l2": 8.251253128051758,
+    "final_total_bytes": 359244,
+    "initial_total_bytes": 359244,
+    "optimizer_state_bytes": 0,
+    "parameter_bytes": 359240,
+    "updates": 1280
+  }
+}
