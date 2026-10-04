@@ -195,6 +195,37 @@ def _integer_action_ids(
     return safe, valid
 
 
+def _temperature_scaled_softmax(logits: Array, temperature: float) -> Array:
+    """Return ``softmax(logits / temperature)`` that survives XLA recomputation.
+
+    Under ``jax.jit`` on XLA:CPU the plain expression returns NaN for finite
+    inputs once ``|logits / temperature|`` reaches about ``2**31`` when the
+    temperature is not a power of two: XLA recomputes ``logits * (1/T)`` inside
+    both softmax fusions and LLVM contracts the multiply-then-subtract into one
+    FMA, leaving the rounding residual of the product at the argmax instead of
+    an exact zero (SlopDotCash/asi#2886).  Both subtractions below are exact
+    because softmax is shift invariant, and each blocks one of the two
+    recomputations; neither alone is sufficient on every shape.  Gradients are
+    exactly the plain-expression gradients: the ``stop_gradient`` maxima are
+    piecewise constant almost everywhere, matching the internal
+    ``stop_gradient`` that ``jax.nn.softmax`` already applies.
+    """
+    centered = logits - jax.lax.stop_gradient(jnp.max(logits))
+    scaled = centered / jnp.asarray(temperature, dtype=jnp.float32)
+    return jax.nn.softmax(scaled - jax.lax.stop_gradient(jnp.max(scaled)))
+
+
+def _temperature_scaled_log_softmax(logits: Array, temperature: float) -> Array:
+    """Return ``log_softmax(logits / temperature)`` with the same guards.
+
+    Log-softmax is also shift invariant, so the exact double centering used by
+    :func:`_temperature_scaled_softmax` applies unchanged.
+    """
+    centered = logits - jax.lax.stop_gradient(jnp.max(logits))
+    scaled = centered / jnp.asarray(temperature, dtype=jnp.float32)
+    return jax.nn.log_softmax(scaled - jax.lax.stop_gradient(jnp.max(scaled)))
+
+
 def floor_and_renormalize_probabilities(
     probabilities: Array,
     min_probability: float = 1e-6,
@@ -692,7 +723,7 @@ class BehaviorModel:
     ) -> Float[Array, " n_actions"]:
         """Predict behavior action probabilities for one feature vector."""
         logits = self.predict_logits(state, observation)
-        return jax.nn.softmax(logits / self._config.temperature)
+        return _temperature_scaled_softmax(logits, self._config.temperature)
 
     def action_probability(
         self,
@@ -760,10 +791,9 @@ class BehaviorModel:
         cfg = self._config
         obs = jnp.asarray(observation, dtype=jnp.float32)
         logits = state.weights @ obs + state.bias
-        scaled_logits = logits / cfg.temperature
-        probabilities = jax.nn.softmax(scaled_logits)
+        probabilities = _temperature_scaled_softmax(logits, cfg.temperature)
         one_hot = jax.nn.one_hot(action_id, cfg.n_actions, dtype=jnp.float32)
-        loss = -jnp.sum(one_hot * jax.nn.log_softmax(scaled_logits))
+        loss = -jnp.sum(one_hot * _temperature_scaled_log_softmax(logits, cfg.temperature))
         logit_gradient = (probabilities - one_hot) / cfg.temperature
         gradient = state.weights.T @ logit_gradient
         gradient_norm = jnp.linalg.norm(gradient)
@@ -832,7 +862,7 @@ class BehaviorModel:
         cfg = self._config
         obs = jnp.asarray(observation, dtype=jnp.float32)
         logits = state.weights @ obs + state.bias
-        probabilities = jax.nn.softmax(logits / cfg.temperature)
+        probabilities = _temperature_scaled_softmax(logits, cfg.temperature)
         one_hot = jax.nn.one_hot(action_id, cfg.n_actions, dtype=jnp.float32)
 
         logit_error = (one_hot - probabilities) / cfg.temperature
