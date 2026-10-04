@@ -1,0 +1,251 @@
+{
+  "assessment_status": "not-assessed",
+  "catastrophic_forgetting_absence_claimed": false,
+  "development_status": "development-only-not-assessed",
+  "evidence_class": "development_recurring_ipmnist_diagnostic",
+  "limitations": [
+    "one fixed A/B/A recurrence is a development diagnostic, not external validation",
+    "sentinel cases and their ordered digests are evaluator supplied and not calibrated here",
+    "state hashes detect declared probe mutation but cannot audit hidden side effects",
+    "relearning savings can coexist with poor direct retention and is not proof of memory",
+    "one-step plasticity measures immediate same-example improvement, not retained knowledge",
+    "no thresholds, matched baselines, uncertainty estimates, or scientific promotion apply"
+  ],
+  "metric_definitions": {
+    "one_step_plasticity": "the screening lane's clipped same-example post-update loss improvement; this is an immediate adaptation diagnostic and is not a retention measurement",
+    "peak_to_revisit_forgetting": "non-negative peak sentinel accuracy before revisit minus the pre-revisit score",
+    "pre_revisit_sentinel_accuracy": "accuracy on the recurring permutation's fixed evaluator-only sentinel set from the frozen learner state after the intervening phase and before any revisit update",
+    "relearning_savings_accuracy": "revisit leading-window pre-update accuracy minus first-exposure leading-window pre-update accuracy",
+    "relearning_savings_mistakes": "first-exposure leading-window mistakes minus revisit leading-window mistakes",
+    "retention_change_from_acquisition": "pre-revisit sentinel accuracy minus first-acquisition-end sentinel accuracy",
+    "revisit_recovery": "revisit-end sentinel accuracy minus pre-revisit sentinel accuracy"
+  },
+  "performance_thresholds_applied": false,
+  "phase_summaries": [
+    {
+      "exposure_index": 0,
+      "mean_post_update_one_step_plasticity": 0.41561214617490766,
+      "mean_pre_update_online_accuracy": 0.6918,
+      "observation_count": 5000,
+      "online_mistakes": 1541,
+      "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+      "phase_index": 0
+    },
+    {
+      "exposure_index": 0,
+      "mean_post_update_one_step_plasticity": 0.49452414363622665,
+      "mean_pre_update_online_accuracy": 0.7674,
+      "observation_count": 5000,
+      "online_mistakes": 1163,
+      "permutation_id": "ipmnist-permutation-a6a6c8ccace663789c6d71d2b5132246e5b56a9d0c0460b67627caf48ad03de2.v1",
+      "phase_index": 1
+    },
+    {
+      "exposure_index": 1,
+      "mean_post_update_one_step_plasticity": 0.4939442571401596,
+      "mean_pre_update_online_accuracy": 0.8132,
+      "observation_count": 5000,
+      "online_mistakes": 934,
+      "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+      "phase_index": 2
+    }
+  ],
+  "protocol": {
+    "evaluator_only_fields": [
+      "phase_index",
+      "permutation_id",
+      "permutation_sha256",
+      "exposure_index",
+      "sentinel_set_id",
+      "sentinel_set_sha256",
+      "sentinel_correctness"
+    ],
+    "exposure_index_origin": 0,
+    "learner_visible_trace_fields": [
+      "pre_update_online_accuracy",
+      "post_update_one_step_plasticity"
+    ],
+    "phases": [
+      {
+        "exposure_index": 0,
+        "length": 5000,
+        "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+        "phase_index": 0,
+        "start_step": 0
+      },
+      {
+        "exposure_index": 0,
+        "length": 5000,
+        "permutation_id": "ipmnist-permutation-a6a6c8ccace663789c6d71d2b5132246e5b56a9d0c0460b67627caf48ad03de2.v1",
+        "phase_index": 1,
+        "start_step": 5000
+      },
+      {
+        "exposure_index": 1,
+        "length": 5000,
+        "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+        "phase_index": 2,
+        "start_step": 10000
+      }
+    ],
+    "probe_ownership": "evaluator-only-frozen",
+    "probe_timing": "after-phase-before-next-online-update",
+    "protocol_id": "ipmnist-screening-aba-bb9eaa26fc73222a2bcb43e81c89149b90c5904f17fefa285e99bf2be47a4415.v1",
+    "relearning_window": 250,
+    "required_probe_snapshots": [
+      {
+        "checkpoint_step": 5000,
+        "exposure_index": 0,
+        "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+        "permutation_sha256": "7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77",
+        "phase_index": 0,
+        "sentinel_case_count": 256,
+        "sentinel_set_id": "ipmnist-sentinel-4d2f874d52a0f6226798e6520d04e581f8ea387c1e8724c11dfd8df2ad175706.v1",
+        "sentinel_set_sha256": "4d2f874d52a0f6226798e6520d04e581f8ea387c1e8724c11dfd8df2ad175706"
+      },
+      {
+        "checkpoint_step": 10000,
+        "exposure_index": 0,
+        "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+        "permutation_sha256": "7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77",
+        "phase_index": 1,
+        "sentinel_case_count": 256,
+        "sentinel_set_id": "ipmnist-sentinel-4d2f874d52a0f6226798e6520d04e581f8ea387c1e8724c11dfd8df2ad175706.v1",
+        "sentinel_set_sha256": "4d2f874d52a0f6226798e6520d04e581f8ea387c1e8724c11dfd8df2ad175706"
+      },
+      {
+        "checkpoint_step": 10000,
+        "exposure_index": 0,
+        "permutation_id": "ipmnist-permutation-a6a6c8ccace663789c6d71d2b5132246e5b56a9d0c0460b67627caf48ad03de2.v1",
+        "permutation_sha256": "a6a6c8ccace663789c6d71d2b5132246e5b56a9d0c0460b67627caf48ad03de2",
+        "phase_index": 1,
+        "sentinel_case_count": 256,
+        "sentinel_set_id": "ipmnist-sentinel-978d31e575d899ad2a9f0ec872f05ad692470b57fdcda9f9392f50b44eebc65f.v1",
+        "sentinel_set_sha256": "978d31e575d899ad2a9f0ec872f05ad692470b57fdcda9f9392f50b44eebc65f"
+      },
+      {
+        "checkpoint_step": 15000,
+        "exposure_index": 1,
+        "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+        "permutation_sha256": "7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77",
+        "phase_index": 2,
+        "sentinel_case_count": 256,
+        "sentinel_set_id": "ipmnist-sentinel-4d2f874d52a0f6226798e6520d04e581f8ea387c1e8724c11dfd8df2ad175706.v1",
+        "sentinel_set_sha256": "4d2f874d52a0f6226798e6520d04e581f8ea387c1e8724c11dfd8df2ad175706"
+      },
+      {
+        "checkpoint_step": 15000,
+        "exposure_index": 0,
+        "permutation_id": "ipmnist-permutation-a6a6c8ccace663789c6d71d2b5132246e5b56a9d0c0460b67627caf48ad03de2.v1",
+        "permutation_sha256": "a6a6c8ccace663789c6d71d2b5132246e5b56a9d0c0460b67627caf48ad03de2",
+        "phase_index": 2,
+        "sentinel_case_count": 256,
+        "sentinel_set_id": "ipmnist-sentinel-978d31e575d899ad2a9f0ec872f05ad692470b57fdcda9f9392f50b44eebc65f.v1",
+        "sentinel_set_sha256": "978d31e575d899ad2a9f0ec872f05ad692470b57fdcda9f9392f50b44eebc65f"
+      }
+    ],
+    "schedule": "A/B/A",
+    "schema": "alberta.recurring-ipmnist-retention.protocol.v1",
+    "sentinel_bindings": [
+      {
+        "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+        "permutation_sha256": "7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77",
+        "sentinel_case_count": 256,
+        "sentinel_set_id": "ipmnist-sentinel-4d2f874d52a0f6226798e6520d04e581f8ea387c1e8724c11dfd8df2ad175706.v1",
+        "sentinel_set_sha256": "4d2f874d52a0f6226798e6520d04e581f8ea387c1e8724c11dfd8df2ad175706"
+      },
+      {
+        "permutation_id": "ipmnist-permutation-a6a6c8ccace663789c6d71d2b5132246e5b56a9d0c0460b67627caf48ad03de2.v1",
+        "permutation_sha256": "a6a6c8ccace663789c6d71d2b5132246e5b56a9d0c0460b67627caf48ad03de2",
+        "sentinel_case_count": 256,
+        "sentinel_set_id": "ipmnist-sentinel-978d31e575d899ad2a9f0ec872f05ad692470b57fdcda9f9392f50b44eebc65f.v1",
+        "sentinel_set_sha256": "978d31e575d899ad2a9f0ec872f05ad692470b57fdcda9f9392f50b44eebc65f"
+      }
+    ],
+    "type": "RecurringIPMNISTProtocol"
+  },
+  "protocol_sha256": "c1bcf52e6b503d2692701c20e37f87e9485fd138dfa69378cc3d625daad8680e",
+  "recurrence": {
+    "acquisition_end_sentinel_accuracy": 0.78515625,
+    "first_exposure_index": 0,
+    "first_exposure_leading_mistakes": 202,
+    "first_exposure_leading_one_step_plasticity": 0.07150437784194946,
+    "first_exposure_leading_pre_update_accuracy": 0.192,
+    "peak_before_revisit_sentinel_accuracy": 0.78515625,
+    "peak_to_revisit_forgetting": 0.1875,
+    "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+    "pre_revisit_sentinel_accuracy": 0.59765625,
+    "relearning_savings_accuracy": 0.456,
+    "relearning_savings_mistakes": 114,
+    "relearning_window": 250,
+    "retention_change_from_acquisition": -0.1875,
+    "revisit_end_sentinel_accuracy": 0.77734375,
+    "revisit_exposure_index": 1,
+    "revisit_leading_mistakes": 88,
+    "revisit_leading_one_step_plasticity": 0.665186984539032,
+    "revisit_leading_pre_update_accuracy": 0.648,
+    "revisit_recovery": 0.1796875
+  },
+  "retention_claimed": false,
+  "schema": "alberta.recurring-ipmnist-retention.report.v1",
+  "scientific_promotion_allowed": false,
+  "sentinel_scores": [
+    {
+      "accuracy": 0.78515625,
+      "checkpoint_step": 5000,
+      "correct_count": 201,
+      "exposure_index": 0,
+      "learner_state_sha256": "7015357c6d251ea48ca1a29d0b72980013ede35bd2224f40e7f388667b65ad25",
+      "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+      "phase_index": 0,
+      "sentinel_case_count": 256,
+      "sentinel_set_id": "ipmnist-sentinel-4d2f874d52a0f6226798e6520d04e581f8ea387c1e8724c11dfd8df2ad175706.v1"
+    },
+    {
+      "accuracy": 0.59765625,
+      "checkpoint_step": 10000,
+      "correct_count": 153,
+      "exposure_index": 0,
+      "learner_state_sha256": "fc4ea9478137923793d946022ef1373f40c428bc68ab850468a429a47425367c",
+      "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+      "phase_index": 1,
+      "sentinel_case_count": 256,
+      "sentinel_set_id": "ipmnist-sentinel-4d2f874d52a0f6226798e6520d04e581f8ea387c1e8724c11dfd8df2ad175706.v1"
+    },
+    {
+      "accuracy": 0.8671875,
+      "checkpoint_step": 10000,
+      "correct_count": 222,
+      "exposure_index": 0,
+      "learner_state_sha256": "fc4ea9478137923793d946022ef1373f40c428bc68ab850468a429a47425367c",
+      "permutation_id": "ipmnist-permutation-a6a6c8ccace663789c6d71d2b5132246e5b56a9d0c0460b67627caf48ad03de2.v1",
+      "phase_index": 1,
+      "sentinel_case_count": 256,
+      "sentinel_set_id": "ipmnist-sentinel-978d31e575d899ad2a9f0ec872f05ad692470b57fdcda9f9392f50b44eebc65f.v1"
+    },
+    {
+      "accuracy": 0.77734375,
+      "checkpoint_step": 15000,
+      "correct_count": 199,
+      "exposure_index": 1,
+      "learner_state_sha256": "1035eafab078aa3ed0223da116d768d735508815271fa240111384f111d335dd",
+      "permutation_id": "ipmnist-permutation-7c314e5a3c885d1c904681e3177d3f13e7e57e43b9d29e9392880022a8a84e77.v1",
+      "phase_index": 2,
+      "sentinel_case_count": 256,
+      "sentinel_set_id": "ipmnist-sentinel-4d2f874d52a0f6226798e6520d04e581f8ea387c1e8724c11dfd8df2ad175706.v1"
+    },
+    {
+      "accuracy": 0.4296875,
+      "checkpoint_step": 15000,
+      "correct_count": 110,
+      "exposure_index": 0,
+      "learner_state_sha256": "1035eafab078aa3ed0223da116d768d735508815271fa240111384f111d335dd",
+      "permutation_id": "ipmnist-permutation-a6a6c8ccace663789c6d71d2b5132246e5b56a9d0c0460b67627caf48ad03de2.v1",
+      "phase_index": 2,
+      "sentinel_case_count": 256,
+      "sentinel_set_id": "ipmnist-sentinel-978d31e575d899ad2a9f0ec872f05ad692470b57fdcda9f9392f50b44eebc65f.v1"
+    }
+  ],
+  "sentinel_snapshots_sha256": "8f7ac1fd5217ccd1a3b344b28f991e4aaddfed45795f4349c2dc21c4b097ff06",
+  "trace_sha256": "f40fc63bce38e1321260ef75d10e57365e6c8b6372aa043e6fa099678cdff3ec"
+}
