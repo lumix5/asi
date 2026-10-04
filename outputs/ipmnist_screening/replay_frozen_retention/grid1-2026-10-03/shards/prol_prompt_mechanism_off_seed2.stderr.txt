@@ -1,0 +1,9 @@
+2026-10-04 07:19:04,736 INFO loading MNIST from data_home=/home/lumix/asi/outputs/upgd_ipmnist/openml_cache
+2026-10-04 07:19:11,928 INFO running prol_prompt_mechanism_off seed=2 for 60 tasks x 5000 steps (noise_mode=step, noise_pool_steps=None)
+2026-10-04 07:19:22,523 INFO prol_prompt_mechanism_off seed=2 task 10/60 online_acc=0.4838 elapsed=4.2s
+2026-10-04 07:19:23,432 INFO prol_prompt_mechanism_off seed=2 task 20/60 online_acc=0.4872 elapsed=5.1s
+2026-10-04 07:19:24,343 INFO prol_prompt_mechanism_off seed=2 task 30/60 online_acc=0.4516 elapsed=6.0s
+2026-10-04 07:19:25,256 INFO prol_prompt_mechanism_off seed=2 task 40/60 online_acc=0.4854 elapsed=6.9s
+2026-10-04 07:19:26,172 INFO prol_prompt_mechanism_off seed=2 task 50/60 online_acc=0.5080 elapsed=7.9s
+2026-10-04 07:19:27,087 INFO prol_prompt_mechanism_off seed=2 task 60/60 online_acc=0.4800 elapsed=8.8s
+2026-10-04 07:19:27,670 INFO prol_prompt_mechanism_off seed=2 done: avg online acc 0.4978 (wall 8.8s) -> outputs/ipmnist_screening/replay_frozen_retention/grid1-2026-10-03/shards/prol_prompt_mechanism_off_seed2.json

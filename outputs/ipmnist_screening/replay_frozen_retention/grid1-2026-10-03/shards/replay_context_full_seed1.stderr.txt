@@ -1,0 +1,9 @@
+2026-10-04 07:13:54,036 INFO loading MNIST from data_home=/home/lumix/asi/outputs/upgd_ipmnist/openml_cache
+2026-10-04 07:14:01,876 INFO running replay_context_full seed=1 for 60 tasks x 5000 steps (noise_mode=step, noise_pool_steps=None)
+2026-10-04 07:16:31,012 INFO replay_context_full seed=1 task 10/60 online_acc=0.7482 elapsed=142.5s
+2026-10-04 07:18:31,682 INFO replay_context_full seed=1 task 20/60 online_acc=0.7668 elapsed=263.2s
+2026-10-04 07:20:33,215 INFO replay_context_full seed=1 task 30/60 online_acc=0.7522 elapsed=384.7s
+2026-10-04 07:22:22,458 INFO replay_context_full seed=1 task 40/60 online_acc=0.7384 elapsed=494.0s
+2026-10-04 07:24:08,825 INFO replay_context_full seed=1 task 50/60 online_acc=0.7576 elapsed=600.3s
+2026-10-04 07:25:57,402 INFO replay_context_full seed=1 task 60/60 online_acc=0.7344 elapsed=708.9s
+2026-10-04 07:25:57,857 INFO replay_context_full seed=1 done: avg online acc 0.7510 (wall 708.9s) -> outputs/ipmnist_screening/replay_frozen_retention/grid1-2026-10-03/shards/replay_context_full_seed1.json

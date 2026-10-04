@@ -1,0 +1,9 @@
+2026-10-04 07:17:42,304 INFO loading MNIST from data_home=/home/lumix/asi/outputs/upgd_ipmnist/openml_cache
+2026-10-04 07:17:49,653 INFO running ranpac_random_projection seed=2 for 60 tasks x 5000 steps (noise_mode=step, noise_pool_steps=None)
+2026-10-04 07:18:00,329 INFO ranpac_random_projection seed=2 task 10/60 online_acc=0.2518 elapsed=4.2s
+2026-10-04 07:18:01,180 INFO ranpac_random_projection seed=2 task 20/60 online_acc=0.1992 elapsed=5.0s
+2026-10-04 07:18:02,030 INFO ranpac_random_projection seed=2 task 30/60 online_acc=0.2372 elapsed=5.9s
+2026-10-04 07:18:02,885 INFO ranpac_random_projection seed=2 task 40/60 online_acc=0.1670 elapsed=6.7s
+2026-10-04 07:18:03,734 INFO ranpac_random_projection seed=2 task 50/60 online_acc=0.1792 elapsed=7.6s
+2026-10-04 07:18:04,581 INFO ranpac_random_projection seed=2 task 60/60 online_acc=0.1666 elapsed=8.4s
+2026-10-04 07:18:05,170 INFO ranpac_random_projection seed=2 done: avg online acc 0.2306 (wall 8.4s) -> outputs/ipmnist_screening/replay_frozen_retention/grid1-2026-10-03/shards/ranpac_random_projection_seed2.json

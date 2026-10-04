@@ -1,0 +1,9 @@
+2026-10-04 07:19:32,683 INFO loading MNIST from data_home=/home/lumix/asi/outputs/upgd_ipmnist/openml_cache
+2026-10-04 07:19:39,858 INFO running prol_prompt_proxy seed=0 for 60 tasks x 5000 steps (noise_mode=step, noise_pool_steps=None)
+2026-10-04 07:19:50,475 INFO prol_prompt_proxy seed=0 task 10/60 online_acc=0.4972 elapsed=4.2s
+2026-10-04 07:19:51,375 INFO prol_prompt_proxy seed=0 task 20/60 online_acc=0.5014 elapsed=5.1s
+2026-10-04 07:19:52,270 INFO prol_prompt_proxy seed=0 task 30/60 online_acc=0.5294 elapsed=6.0s
+2026-10-04 07:19:53,173 INFO prol_prompt_proxy seed=0 task 40/60 online_acc=0.5362 elapsed=6.9s
+2026-10-04 07:19:54,064 INFO prol_prompt_proxy seed=0 task 50/60 online_acc=0.4832 elapsed=7.8s
+2026-10-04 07:19:54,976 INFO prol_prompt_proxy seed=0 task 60/60 online_acc=0.4864 elapsed=8.7s
+2026-10-04 07:19:55,557 INFO prol_prompt_proxy seed=0 done: avg online acc 0.5132 (wall 8.7s) -> outputs/ipmnist_screening/replay_frozen_retention/grid1-2026-10-03/shards/prol_prompt_proxy_seed0.json

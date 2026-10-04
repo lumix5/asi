@@ -1,0 +1,9 @@
+2026-10-04 07:15:19,529 INFO loading MNIST from data_home=/home/lumix/asi/outputs/upgd_ipmnist/openml_cache
+2026-10-04 07:15:26,172 INFO running randumb_random_features seed=0 for 60 tasks x 5000 steps (noise_mode=step, noise_pool_steps=None)
+2026-10-04 07:15:37,058 INFO randumb_random_features seed=0 task 10/60 online_acc=0.3336 elapsed=4.5s
+2026-10-04 07:15:38,351 INFO randumb_random_features seed=0 task 20/60 online_acc=0.1730 elapsed=5.8s
+2026-10-04 07:15:39,628 INFO randumb_random_features seed=0 task 30/60 online_acc=0.2356 elapsed=7.1s
+2026-10-04 07:15:40,896 INFO randumb_random_features seed=0 task 40/60 online_acc=0.2632 elapsed=8.3s
+2026-10-04 07:15:42,177 INFO randumb_random_features seed=0 task 50/60 online_acc=0.2160 elapsed=9.6s
+2026-10-04 07:15:43,454 INFO randumb_random_features seed=0 task 60/60 online_acc=0.2828 elapsed=10.9s
+2026-10-04 07:15:44,026 INFO randumb_random_features seed=0 done: avg online acc 0.2381 (wall 10.9s) -> outputs/ipmnist_screening/replay_frozen_retention/grid1-2026-10-03/shards/randumb_random_features_seed0.json
