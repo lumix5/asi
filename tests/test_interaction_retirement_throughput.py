@@ -104,6 +104,14 @@ def test_default_retirement_cadence_is_bit_exact_legacy_behavior() -> None:
     )
     legacy_state = _all_stale_state(legacy, key=3)
     explicit_state = _all_stale_state(explicit, key=3)
+    # Each helper ran its own ``init``, which stamps wall-clock time into the
+    # two host-timing floats (``birth_timestamp`` is float32, with a 128 s
+    # quantum near epoch scales), so the two states agree on the clock only
+    # by luck.  Normalize the timing floats and pin every scientific leaf.
+    legacy_state = legacy_state.replace(
+        birth_timestamp=explicit_state.birth_timestamp,
+        uptime_s=explicit_state.uptime_s,
+    )
 
     def run(
         learner: FixedBudgetInteractionLearner,

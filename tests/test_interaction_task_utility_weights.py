@@ -132,6 +132,18 @@ def test_default_none_path_is_tree_exact_and_keeps_legacy_mean() -> None:
     explicit = _learner(task_utility_weights=None)
     default_state = default.init(feature_dim=2, key=jr.key(11))
     explicit_state = explicit.init(feature_dim=2, key=jr.key(11))
+    # ``init`` stamps wall-clock time into the two host-timing floats
+    # (``birth_timestamp`` as float32, ``uptime_s``).  Near epoch scales the
+    # float32 birth timestamp has a 128 s quantum, so two inits only land in
+    # the same bucket by luck: runtime py3.12 shard 5 of CI run 35846267941
+    # failed exactly here when the readings straddled a bucket boundary
+    # ("Trees 0 and 1 differ in leaves 'birth_timestamp'").  The clock is not
+    # what this test pins; normalize both timing floats and compare every
+    # scientific leaf exactly.
+    default_state = default_state.replace(
+        birth_timestamp=explicit_state.birth_timestamp,
+        uptime_s=explicit_state.uptime_s,
+    )
     chex.assert_trees_all_equal(default_state, explicit_state)
     weights = jnp.asarray(((2.0,), (0.0,), (0.0,), (0.0,), (0.0,)), dtype=jnp.float32)
     default_state = default_state.replace(output_weights=weights)
