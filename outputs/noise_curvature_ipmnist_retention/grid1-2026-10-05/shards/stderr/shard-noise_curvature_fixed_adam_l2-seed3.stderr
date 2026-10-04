@@ -1,0 +1,5 @@
+2026-10-05 04:06:49,782 INFO loading MNIST from data_home=outputs/upgd_ipmnist/openml_cache
+2026-10-05 04:06:52,731 INFO running noise_curvature_fixed_adam_l2 seed=3 for 10 tasks x 5000 steps (noise_mode=step, noise_pool_steps=None)
+2026-10-05 04:07:10,585 INFO noise_curvature_fixed_adam_l2 seed=3 task 5/10 online_acc=0.7220 elapsed=15.0s
+2026-10-05 04:07:22,268 INFO noise_curvature_fixed_adam_l2 seed=3 task 10/10 online_acc=0.6966 elapsed=26.6s
+2026-10-05 04:07:22,714 INFO noise_curvature_fixed_adam_l2 seed=3 done: avg online acc 0.7204 (wall 26.6s) -> outputs/noise_curvature_ipmnist_retention/grid1-2026-10-05/shards/shard-noise_curvature_fixed_adam_l2-seed3.json

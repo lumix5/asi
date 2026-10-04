@@ -1,0 +1,106 @@
+{
+  "arms": [
+    "noise_curvature_fixed_adam_l2",
+    "noise_curvature_gradient_only",
+    "noise_curvature_volatility_only",
+    "noise_curvature_combined"
+  ],
+  "cell": {
+    "n_tasks": 10,
+    "observations_per_run": 50000,
+    "task_length": 5000
+  },
+  "combined_bitwise_equals_gradient_only_per_seed": [
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "control": "noise_curvature_fixed_adam_l2",
+  "decision_rule": "paired per-seed mean-online-accuracy delta vs noise_curvature_fixed_adam_l2; supported = all five deltas > 0 and two-sided paired-t 95% interval (df=4) entirely > 0; rejected = all five deltas < 0 and interval entirely < 0; otherwise inconclusive",
+  "development_only": true,
+  "grid": "grid1-2026-10-05",
+  "outcomes": {
+    "noise_curvature_combined": "rejected",
+    "noise_curvature_fixed_adam_l2": "inconclusive",
+    "noise_curvature_gradient_only": "rejected",
+    "noise_curvature_volatility_only": "rejected"
+  },
+  "paired_deltas_vs_control": {
+    "noise_curvature_combined": [
+      -0.367779989,
+      -0.3599399939999999,
+      -0.3877999819999999,
+      -0.3520799880000001,
+      -0.36701999800000007
+    ],
+    "noise_curvature_gradient_only": [
+      -0.367779989,
+      -0.3599399939999999,
+      -0.3877999819999999,
+      -0.3520799880000001,
+      -0.36701999800000007
+    ],
+    "noise_curvature_volatility_only": [
+      -0.15021998799999992,
+      -0.1331000029999999,
+      -0.128039986,
+      -0.14422000000000001,
+      -0.18191999800000014
+    ]
+  },
+  "paired_mean_online_accuracy": {
+    "noise_curvature_combined": [
+      0.352539991,
+      0.345039992,
+      0.3239999910000001,
+      0.368339991,
+      0.357439983
+    ],
+    "noise_curvature_fixed_adam_l2": [
+      0.72031998,
+      0.7049799859999999,
+      0.711799973,
+      0.7204199790000001,
+      0.7244599810000001
+    ],
+    "noise_curvature_gradient_only": [
+      0.352539991,
+      0.345039992,
+      0.3239999910000001,
+      0.368339991,
+      0.357439983
+    ],
+    "noise_curvature_volatility_only": [
+      0.570099992,
+      0.571879983,
+      0.583759987,
+      0.5761999790000001,
+      0.542539983
+    ]
+  },
+  "paired_t95_intervals_vs_control": {
+    "noise_curvature_combined": [
+      -0.3834160459550592,
+      -0.3504319344449408
+    ],
+    "noise_curvature_gradient_only": [
+      -0.3834160459550592,
+      -0.3504319344449408
+    ],
+    "noise_curvature_volatility_only": [
+      -0.17375865708573093,
+      -0.12124133291426907
+    ]
+  },
+  "repository_head": "f3d32c451ed1c1715e477ad56b782fc7ea89b206",
+  "scientific_promotion_allowed": false,
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ]
+}

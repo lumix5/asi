@@ -1,0 +1,82 @@
+{
+  "allowed_boundary_information": [],
+  "allowed_task_information": [
+    "current_example_label"
+  ],
+  "arm": "noise_curvature_combined",
+  "comparison_id": "asi.noise-curvature-ipmnist.current-runner.v1",
+  "development_only": true,
+  "development_seed_protocol": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "hidden1": 300,
+  "hidden2": 150,
+  "hyperparameters": {
+    "beta1": 0.9,
+    "beta2": 0.999,
+    "control_interval": 40.0,
+    "controller_mode": 3.0,
+    "cool_rate": 0.99,
+    "effective_step_floor": 0.12,
+    "ema_decay": 0.9,
+    "eps": 1e-08,
+    "power_iterations": 1.0,
+    "safety_factor": 0.8,
+    "step_size": 0.001,
+    "timid_fraction": 0.1,
+    "volatility_epsilon": 1e-08,
+    "volatility_inflation": 1.0,
+    "volatility_kappa": 1.0,
+    "warm_fraction": 0.3,
+    "warm_rate": 1.01,
+    "weight_decay": 0.001
+  },
+  "input_dim": 784,
+  "live_control": "rls_head_resid_l1_preset005",
+  "metrics": {
+    "mean_loss": 1.990013141,
+    "mean_online_accuracy": 0.352539991,
+    "mean_plasticity": 0.013103043000000003
+  },
+  "n_classes": 10,
+  "n_tasks": 10,
+  "observations": 50000,
+  "official_code_status": "none-identified-as-of-2026-08-17",
+  "outcome": "rejected",
+  "outcome_retained": true,
+  "paper_revision": "arXiv:2509.19698v3",
+  "protocol_differences": [
+    "ASI uses input-permuted MNIST labels, not the paper's random-label MNIST tasks",
+    "ASI uses its current 784-300-150-10 ReLU MLP, not the paper's 784-256-256-10 MLP",
+    "ASI performs one online update per example, not batch-256 training for 250 epochs per task",
+    "the most recent K examples form the charged diagnostic minibatch; optimizer updates stay online",
+    "ASI uses decoupled AdamW weight decay for the fixed L2 conditioning arm",
+    "one retained block-power direction and one absolute block-Rayleigh HVP per layer are used at each K-step decision",
+    "each block-power direction starts as a deterministic equal-weight vector because arXiv v3 does not specify its initializer",
+    "curvature statistics use bias-corrected EMA mean/variance without the paper's finite queue",
+    "kappa is fixed to 1 because arXiv v3 leaves its absorbed scaling constants unspecified",
+    "the paper's much-less-than warm condition is operationalized as 0.1 times the safe bound",
+    "timing remains telemetry-only and no empirical result is represented by this implementation"
+  ],
+  "resources": {
+    "controller_events": 1250,
+    "data_steps": 50000,
+    "environment_steps": 0,
+    "first_order_gradient_queries": 100000,
+    "hessian_vector_product_queries": 3750,
+    "loss_only_queries": 50000,
+    "model_queries": 153750,
+    "persistent_bytes": 4640356,
+    "timing_is_telemetry_only": true,
+    "timing_seconds": 101.18
+  },
+  "schema": "asi.noise-curvature-ipmnist.development-result.v1",
+  "scientific_promotion_allowed": false,
+  "seed": 0,
+  "task_length": 5000,
+  "updates": 50000
+}

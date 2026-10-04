@@ -1,0 +1,5 @@
+2026-10-05 04:07:59,557 INFO loading MNIST from data_home=outputs/upgd_ipmnist/openml_cache
+2026-10-05 04:08:02,429 INFO running noise_curvature_gradient_only seed=0 for 10 tasks x 5000 steps (noise_mode=step, noise_pool_steps=None)
+2026-10-05 04:08:53,585 INFO noise_curvature_gradient_only seed=0 task 5/10 online_acc=0.1914 elapsed=48.3s
+2026-10-05 04:09:39,810 INFO noise_curvature_gradient_only seed=0 task 10/10 online_acc=0.0758 elapsed=94.5s
+2026-10-05 04:09:40,282 INFO noise_curvature_gradient_only seed=0 done: avg online acc 0.3525 (wall 94.5s) -> outputs/noise_curvature_ipmnist_retention/grid1-2026-10-05/shards/shard-noise_curvature_gradient_only-seed0.json
