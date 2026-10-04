@@ -180,8 +180,11 @@ def _nonzero_magnitude_bits(value: Array) -> Array:
 def spectral_matrix_sign_transaction(matrix: Array, *, steps: int = 5) -> tuple[Array, Array]:
     """Apply Muon-OGD v2's cubic NS5 matrix-sign approximation.
 
-    A matrix whose entries the arithmetic has partially or entirely destroyed
-    is invalid. The pinned paper defines ``f(X) = 3/2 X - 1/2 XX^T X``. Frobenius
+    A matrix whose arithmetic flush destroyed rank the answer needed is
+    invalid: entries carrying magnitude bits in the input that are zero in the
+    normalized copy, together with a zero singular value of that copy, mean
+    the float64 input was higher rank than anything float32 can return. The
+    pinned paper defines ``f(X) = 3/2 X - 1/2 XX^T X``. Frobenius
     normalization places every singular value in its convergence interval and
     preserves an exact zero for a zero matrix. The normalization divides an
     exactly power-of-two rescaled copy by its own norm so the divisor stays
@@ -205,13 +208,19 @@ def spectral_matrix_sign_transaction(matrix: Array, *, steps: int = 5) -> tuple[
     # answer for a rank-2 input. The destruction can also be partial: `jnp.ldexp`
     # returns a float32 subnormal operand unchanged, so the lift cannot raise
     # those entries, and the quotient by `rescaled_norm` then flushes exactly
-    # them to zero while the largest entry survives. Comparing the bitwise
-    # per-entry witness against the normalized matrix is what separates loss
-    # from a true zero, because no float comparison can: `x != 0.0` and
-    # `x > 0.0` are both False for a flushed entry. An entry the arithmetic
-    # dropped gets the same disposition as an entirely flushed matrix, and a
-    # magnitude that overflows is already reported invalid rather than
-    # laundered. Entries that are merely small stay nonzero and are untouched.
+    # them to zero while the largest entry survives. The bitwise per-entry
+    # witness is the only detector for a flushed entry, because no float
+    # comparison can see one: `x != 0.0` and `x > 0.0` are both False for it.
+    # A flushed entry is fatal only when the normalized copy also lost rank —
+    # an exact zero singular value means magnitude-bearing entries were
+    # load-bearing, and the float64 input's rank did not survive. A flushed
+    # entry beside surviving mass can leave the normalized copy full rank
+    # ([[1, 1e-40], [0, 1]] normalizes to a nonzero diagonal), and the sign is
+    # then still determined by the entries that survived, so the guard must
+    # not reject an answer the input already fixed. A magnitude that overflows
+    # is already reported invalid rather than laundered, and a bitwise-zero
+    # entry is not loss at all: the witness, never the rank test alone, is
+    # what separates a destroyed input from a genuinely rank-deficient one.
     _, exponent = jnp.frexp(jnp.max(jnp.abs(value)))
     rescaled = jnp.ldexp(value, -exponent)
     rescaled_norm = jnp.linalg.norm(rescaled)
@@ -221,7 +230,17 @@ def spectral_matrix_sign_transaction(matrix: Array, *, steps: int = 5) -> tuple[
         rescaled / jnp.where(positive, rescaled_norm, jnp.ones_like(rescaled_norm)),
         jnp.zeros_like(rescaled),
     )
-    destroyed = jnp.any(_magnitude_bits_present(value) & (x == 0.0))
+    flushed_entries = jnp.any(_magnitude_bits_present(value) & (x == 0.0))
+    # The singular values are a discrete property of the normalized copy, not
+    # a quantity the caller differentiates: SVD backward is undefined at
+    # repeated singular values, and the predicate must not poison the
+    # gradient of the valid branch it selects for. LAPACK has no half-precision
+    # SVD, and promoting a half-precision copy to float32 is exact.
+    svd_input = x if x.dtype.itemsize >= 4 else x.astype(jnp.float32)
+    normalized_singular_values = jax.lax.stop_gradient(
+        jnp.linalg.svd(svd_input, compute_uv=False)
+    )
+    destroyed = flushed_entries & jnp.any(normalized_singular_values == 0.0)
     valid = (
         jnp.all(jnp.isfinite(value)) & jnp.isfinite(norm) & jnp.logical_not(destroyed)
     )

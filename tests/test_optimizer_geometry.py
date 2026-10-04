@@ -503,6 +503,57 @@ def test_geometry_partially_flushed_entries_are_invalid_not_laundered() -> None:
         spectral_matrix_sign(matrix)
 
 
+def test_geometry_flush_off_the_support_keeps_the_correct_identity_sign() -> None:
+    # A deep-subnormal entry beside surviving mass flushes during
+    # normalization, but the normalized matrix is a nonzero diagonal: the
+    # flushed entry never carried rank the answer needed, and the identity
+    # sign main returns is exact. Rejecting it would make a correct case
+    # worse, so the guard fires on lost rank, not on any flushed entry.
+    matrix = jnp.asarray(np.array([[1.0, 1e-40], [0.0, 1.0]], dtype=np.float32))
+    for transaction in (
+        spectral_matrix_sign_transaction,
+        jax.jit(spectral_matrix_sign_transaction),
+    ):
+        safe, valid = transaction(matrix)
+        assert bool(valid)
+        np.testing.assert_allclose(safe, jnp.eye(2, dtype=np.float32), atol=2e-6)
+    np.testing.assert_allclose(
+        spectral_matrix_sign(matrix), jnp.eye(2, dtype=np.float32), atol=2e-6
+    )
+
+
+def test_geometry_wide_range_normal_entries_keep_the_exact_identity_sign() -> None:
+    # The same shape of case with every input entry a normal float32: the
+    # negligible 1e-25 entry still flushes in the normalized copy while the
+    # diagonal survives, and the correct answer is the identity main already
+    # certified. Every entry being normal contradicts any guard keyed on the
+    # input alone; the rank of the normalized copy is what decides.
+    matrix = jnp.asarray(np.array([[1e15, 1e-25], [0.0, 1e15]], dtype=np.float32))
+    for transaction in (
+        spectral_matrix_sign_transaction,
+        jax.jit(spectral_matrix_sign_transaction),
+    ):
+        safe, valid = transaction(matrix)
+        assert bool(valid)
+        np.testing.assert_allclose(safe, jnp.eye(2, dtype=np.float32), atol=2e-6)
+    np.testing.assert_allclose(
+        spectral_matrix_sign(matrix), jnp.eye(2, dtype=np.float32), atol=2e-6
+    )
+
+
+def test_geometry_true_zero_entries_keep_their_valid_rank_deficient_sign() -> None:
+    # Bitwise-zero entries are not loss: a genuinely rank-1 input keeps the
+    # valid rank-1 sign main certified. This pins that the guard fires on the
+    # bitwise flush witness together with the lost rank, never on the rank of
+    # the normalized copy alone.
+    matrix = jnp.asarray(np.array([[1.0, 0.0], [0.0, 0.0]], dtype=np.float32))
+    safe, valid = spectral_matrix_sign_transaction(matrix)
+    assert bool(valid)
+    np.testing.assert_array_equal(
+        safe, jnp.asarray(np.array([[1.0, 0.0], [0.0, 0.0]], dtype=np.float32))
+    )
+
+
 def test_geometry_dual_update_flushes_the_entries_before_the_guard_can_see_them() -> None:
     # An all-subnormal momentum matrix is destroyed one step earlier than the
     # matrix sign: adding the constraint shift flushes every operand, so the
