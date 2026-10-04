@@ -8,17 +8,21 @@ GQ(lambda), Maei & Sutton 2010), the rho=1 equivalence with the on-policy
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import chex
 import jax
 import jax.numpy as jnp
 import numpy as np
+import pytest
 
 from alberta_framework.core.horde import HordeLearner
+from alberta_framework.core.multi_head_learner import MultiHeadMLPState
 from alberta_framework.core.off_policy_horde import (
     NonlinearSharedGTDHordeLearner,
     OffPolicyHordeLearner,
 )
-from alberta_framework.core.optimizers import LMS
+from alberta_framework.core.optimizers import LMS, AGCBounding, Bounder, ObGDBounding
 from alberta_framework.core.types import DemonType, GVFSpec, HordeSpec, create_horde_spec
 
 
@@ -116,18 +120,22 @@ def test_two_step_canonical_per_decision_is_update() -> None:
     )
 
 
-def test_rho_one_matches_on_policy_horde_learner() -> None:
-    """With rho=1 everywhere, updates must equal the on-policy HordeLearner."""
+def _run_rho_one_pair(
+    bounder: Bounder | None,
+) -> tuple[MultiHeadMLPState, MultiHeadMLPState]:
+    """Run the rho=1 equivalence scenario and return both learners' states."""
     spec = _spec(gammas=(0.0, 0.7), lamdas=(0.0, 0.6))
     off = OffPolicyHordeLearner(
         spec,
         hidden_sizes=(8,),
         optimizer=LMS(step_size=0.05),
+        bounder=bounder,
     )
     on = HordeLearner(
         spec,
         hidden_sizes=(8,),
         optimizer=LMS(step_size=0.05),
+        bounder=bounder,
     )
     off_state = off.init(3, jax.random.key(11))
     on_state = on.init(3, jax.random.key(11))
@@ -143,11 +151,46 @@ def test_rho_one_matches_on_policy_horde_learner() -> None:
             cums = cums.at[1].set(jnp.nan)  # inactive demon step
         off_state = off.update_with_ratios(off_state, obs, cums, next_obs, ones).state
         on_state = on.update(on_state, obs, cums, next_obs).state
+    return off_state, on_state
+
+
+@pytest.mark.parametrize(
+    "make_bounder",
+    [
+        pytest.param(lambda: None, id="none"),
+        pytest.param(lambda: ObGDBounding(kappa=2.0), id="obgd-bound-active"),
+        pytest.param(lambda: AGCBounding(clip_factor=0.01), id="agc-clipping"),
+    ],
+)
+def test_rho_one_matches_on_policy_horde_learner(
+    make_bounder: Callable[[], Bounder | None],
+) -> None:
+    """With rho=1 everywhere, updates must equal the on-policy HordeLearner.
+
+    The equivalence is a property of the learners, not of the update
+    bounder, so it is pinned under an active ``ObGDBounding`` and an
+    actively clipping ``AGCBounding`` as well as without a bounder.  Both
+    learners must treat the bounder's reporting metric the same way: any
+    state where exactly one of them multiplies the metric into its stored
+    traces (ObGD step scale, AGC clipped-unit fraction) diverges under the
+    bounder cases while the ``none`` case stays green.
+    """
+    bounder = make_bounder()
+    off_state, on_state = _run_rho_one_pair(bounder)
 
     chex.assert_trees_all_close(off_state.trunk_params, on_state.trunk_params, atol=1e-6)
     chex.assert_trees_all_close(off_state.head_params, on_state.head_params, atol=1e-6)
     chex.assert_trees_all_close(off_state.head_traces, on_state.head_traces, atol=1e-6)
     chex.assert_trees_all_close(off_state.trunk_traces, on_state.trunk_traces, atol=1e-6)
+
+    if bounder is not None:
+        # The bound must actually engage here: with the bounder active, the
+        # trajectory must differ from the unbounded one.  Guards against an
+        # inert bounder making the bounder cases vacuous copies of "none".
+        unbounded_off, unbounded_on = _run_rho_one_pair(None)
+        bounded_trunk = np.asarray(off_state.trunk_params.weights[0], dtype=np.float64)
+        unbounded_trunk = np.asarray(unbounded_off.trunk_params.weights[0], dtype=np.float64)
+        assert float(np.max(np.abs(bounded_trunk - unbounded_trunk))) > 1e-6
 
 
 def test_gtd_backend_correction_term_carries_rho() -> None:
