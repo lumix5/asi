@@ -78,7 +78,9 @@ def test_origin_recursion_class_rejects_before_loads(
     started = time.perf_counter()
     with pytest.raises(ValueError, match="nesting limit"):
         load_checkpoint_metadata(path)
-    assert time.perf_counter() - started < 0.25
+    # Not a latency contract: only guards a runaway gate walk. 5 s tolerates
+    # shared-CI-runner load; 0.25 s flaked at 0.60 s in CI run 36962287499.
+    assert time.perf_counter() - started < 5.0
 
 
 def test_symlinked_metadata_deep_nest_rejects_before_loads(tmp_path: Path) -> None:

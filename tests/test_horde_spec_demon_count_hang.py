@@ -59,14 +59,18 @@ def test_from_config_rejects_oversized_demon_list_before_rebuild(count: int) -> 
     started = time.perf_counter()
     with pytest.raises(ValueError, match="at most 4096"):
         HordeSpec.from_config({"demons": [_DEMON_PAYLOAD] * count})
-    assert time.perf_counter() - started < 0.5
+    # Not a latency contract: only guards the spec-rebuild hang. 5 s tolerates
+    # shared-CI-runner load; 0.5 s flakes the same way 0.25 s did (run 36962287499).
+    assert time.perf_counter() - started < 5.0
 
 
 def test_create_horde_spec_rejects_oversized_pointer_repeat() -> None:
     started = time.perf_counter()
     with pytest.raises(ValueError, match="at most 4096"):
         create_horde_spec([_demon()] * 400_000)
-    assert time.perf_counter() - started < 0.5
+    # Not a latency contract: only guards the spec-rebuild hang. 5 s tolerates
+    # shared-CI-runner load; 0.5 s flakes the same way 0.25 s did (run 36962287499).
+    assert time.perf_counter() - started < 5.0
 
 
 class _CountingDemonSequence(Sequence[GVFSpec]):
