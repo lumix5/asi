@@ -1,0 +1,190 @@
+{
+ "base_learner": "upgd_w",
+ "config": {
+  "hidden1": 300,
+  "hidden2": 150,
+  "input_dim": 784,
+  "n_classes": 10,
+  "n_tasks": 20,
+  "task_length": 5000
+ },
+ "config_name": "intentional_updates_head_only",
+ "created_unix": 1791135053.5200949,
+ "dataset_provenance": {
+  "materialization": "alberta.ipmnist.float32-neg1-pos1-int32-labels.v1",
+  "schema": "alberta.ipmnist_screening.dataset_provenance.v1",
+  "source": {
+   "name": "mnist_784",
+   "provider": "openml",
+   "row_start": 0,
+   "row_stop_exclusive": 60000,
+   "version": 1
+  },
+  "x": {
+   "dtype": "<f4",
+   "sha256": "b8078cd833f53d89828a5e28d728517be9add34076f13fe973399f1f16381313",
+   "shape": [
+    60000,
+    784
+   ]
+  },
+  "y": {
+   "dtype": "<i4",
+   "sha256": "4f1dd9551f104f8153409e0add59f0a71568f7bad5a5f8e2274480c186fe219a",
+   "shape": [
+    60000
+   ]
+  }
+ },
+ "environment": {
+  "jax": {
+   "backend": "cpu",
+   "config": {
+    "jax_default_matmul_precision": null,
+    "jax_default_prng_impl": "threefry2x32",
+    "jax_disable_jit": false,
+    "jax_enable_x64": false,
+    "jax_numpy_dtype_promotion": "standard",
+    "jax_numpy_rank_promotion": "allow",
+    "jax_random_seed_offset": 0,
+    "jax_threefry_partitionable": true
+   },
+   "devices": [
+    {
+     "device_kind": "cpu",
+     "id": 0,
+     "platform": "cpu",
+     "process_index": 0
+    }
+   ]
+  },
+  "packages": {
+   "chex": "0.1.92",
+   "jax": "0.11.0",
+   "jaxlib": "0.11.0",
+   "numpy": "2.5.1",
+   "scikit-learn": "1.9.0"
+  },
+  "platform": {
+   "machine": "x86_64",
+   "release": "7.0.0-34-generic",
+   "system": "Linux"
+  },
+  "process_environment": {
+   "CUDA_VISIBLE_DEVICES": null,
+   "JAX_DEFAULT_MATMUL_PRECISION": null,
+   "JAX_ENABLE_X64": null,
+   "JAX_PLATFORMS": null,
+   "JAX_PLATFORM_NAME": null,
+   "OMP_NUM_THREADS": "1",
+   "XLA_FLAGS": null
+  },
+  "python": {
+   "implementation": "CPython",
+   "version": "3.14.4"
+  },
+  "schema": "alberta.ipmnist_screening.runtime.v1"
+ },
+ "evidence_policy": {
+  "development_only": true,
+  "evidence_class": "development_screening_diagnostic",
+  "scientific_promotion_allowed": false
+ },
+ "hyperparameters": {
+  "beta2": 0.999,
+  "beta_clip": 0.9998,
+  "clip_mult": 20.0,
+  "fixed_step_size": 0.01,
+  "intended_fraction": 0.5,
+  "intentional_enabled": 1.0,
+  "norm_decay": 0.99,
+  "norm_epsilon": 1e-08,
+  "optimizer_epsilon": 1e-08,
+  "update_features": 0.0,
+  "use_adaptive_clip": 1.0,
+  "use_diagonal_normalization": 1.0,
+  "weight_decay": 0.0
+ },
+ "noise_mode": "step",
+ "noise_pool_steps": null,
+ "per_task_accuracy": [
+  0.72959995,
+  0.66060001,
+  0.63839996,
+  0.63379997,
+  0.64300001,
+  0.63639998,
+  0.64859998,
+  0.6142,
+  0.63839996,
+  0.63800001,
+  0.63819999,
+  0.62659997,
+  0.64399999,
+  0.62879997,
+  0.63800001,
+  0.63299996,
+  0.63999999,
+  0.64899999,
+  0.62900001,
+  0.62119997
+ ],
+ "per_task_loss": [
+  0.88970977,
+  1.25560987,
+  1.35783458,
+  1.48376358,
+  1.41422784,
+  1.52769375,
+  1.43056357,
+  1.5822376,
+  1.43103492,
+  1.49236166,
+  1.51143432,
+  1.53726852,
+  1.47311795,
+  1.59722853,
+  1.49936271,
+  1.52630484,
+  1.45320761,
+  1.45037687,
+  1.55414259,
+  1.55948019
+ ],
+ "per_task_plasticity": [
+  0.40450278,
+  0.40816641,
+  0.4085367,
+  0.41059965,
+  0.4114081,
+  0.41130203,
+  0.41201866,
+  0.41586655,
+  0.40985438,
+  0.40813914,
+  0.41250461,
+  0.4091793,
+  0.41421375,
+  0.41223672,
+  0.4105117,
+  0.41505,
+  0.40874475,
+  0.4100076,
+  0.41165057,
+  0.41203108
+ ],
+ "schema": "alberta.ipmnist_screening.shard.v2",
+ "seed": 18600,
+ "source_provenance": {
+  "git_commit": "f3d32c451ed1c1715e477ad56b782fc7ea89b206",
+  "git_object_format": "sha1",
+  "git_tree": "602620ab20bd149ba3bca258f2b0cc94ce398527",
+  "relevant_source_file_count": 230,
+  "relevant_source_scope": "tracked:alberta_framework/**,pyproject.toml,uv.lock",
+  "relevant_source_sha256": "5c908bb81e548f355276825232fde23d2d089862ccaa7eedd7b77257fd4e0aea",
+  "schema": "alberta.ipmnist_screening.source_provenance.v1",
+  "uv_lock_sha256": "0fc52a642ba70bd64bfa80049b1efc99c35829d01e44705370994ad818ee82d7",
+  "worktree_clean": true
+ },
+ "wall_clock_seconds": 79.98
+}
