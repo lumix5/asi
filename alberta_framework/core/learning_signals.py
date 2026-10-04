@@ -51,11 +51,17 @@ import numpy as np
 from jax import Array
 from jaxtyping import Bool, Float, Int
 
+from alberta_framework._scan_resources import ScanBudget, require_scan_steps
 from alberta_framework.core._float32_scalars import (
     validated_float32_scalar,
     validated_float32_scalar_with_ratio,
 )
 
+# Public last-fit in tests is a 12-step scan; the documented program ceiling is
+# the shared 10,000-step scan budget. An ``INT32_MAX``-legal sequence length
+# must fail here in validation, not trace an unbounded-duration ``lax.scan``
+# (the hang/OOM class established by #2124, #2128, and #2441).
+_LEARNING_SIGNAL_SCAN_BUDGET = ScanBudget("learning-signal scan", maximum_steps=10_000)
 _INT32_MAX = 2_147_483_647
 _FLOAT32_MAX = float.fromhex("0x1.fffffep+127")
 _ACTUAL_INT_TYPES = frozenset({int, *(np.dtype(code).type for code in "bBhHiIlLqQpP")})
@@ -919,7 +925,9 @@ class LearningSignalEstimator:
             raise ValueError("member_means sequence must have rank 3")
         if means.shape[0] < 1:
             raise ValueError("member_means sequence must be non-empty")
-        num_steps = _require_int32("scan sequence length", means.shape[0], minimum=1)
+        num_steps = require_scan_steps(
+            "scan sequence length", means.shape[0], _LEARNING_SIGNAL_SCAN_BUDGET
+        )
         expected_ensemble_shape = (
             num_steps,
             self._config.ensemble_size,
