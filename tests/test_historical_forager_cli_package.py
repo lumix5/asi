@@ -64,6 +64,7 @@ _EXPECTED_SCRIPT_NAMES = {
     "asi-nap-ipmnist",
     "asi-native-supervised-catalog",
     "asi-plasticity-diagnostic",
+    "asi-readiness-development",
     "asi-jepa-transfer-feasibility",
     "asi-reference-life-scorecard",
     "asi-rule-discovery-summary",
