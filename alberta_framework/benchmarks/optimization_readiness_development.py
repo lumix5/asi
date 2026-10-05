@@ -266,10 +266,14 @@ def _init_params(key: Array, width: int) -> dict[str, Array]:
     }
 
 
-def _batch_logits(params: Mapping[str, Array], inputs: Array) -> Array:
+def _hidden_features(params: Mapping[str, Array], inputs: Array) -> Array:
+    """Second ReLU layer: the representation whose rank the lane reports."""
     hidden1 = jax.nn.relu(inputs @ params["w1"] + params["b1"])
-    hidden2 = jax.nn.relu(hidden1 @ params["w2"] + params["b2"])
-    return hidden2 @ params["w3"] + params["b3"]
+    return jax.nn.relu(hidden1 @ params["w2"] + params["b2"])
+
+
+def _batch_logits(params: Mapping[str, Array], inputs: Array) -> Array:
+    return _hidden_features(params, inputs) @ params["w3"] + params["b3"]
 
 
 def _batch_loss(params: Mapping[str, Array], inputs: Array, labels: Array) -> Array:
@@ -524,9 +528,12 @@ def _measurement(
         include_reliability=False,
     )
 
-    hidden2 = jax.jit(_batch_logits)(params, jnp.asarray(validation_images))
+    # Rank the representation (second ReLU layer), not the logits: the
+    # logits-projected matrix is capped at N_CLASSES=10 nonzero directions,
+    # which would pin the reported rank at 10 for every hidden width.
+    features = jax.jit(_hidden_features)(params, jnp.asarray(validation_images))
     representation_rank = energy_rank(
-        np.asarray(hidden2, dtype=np.float64), threshold=0.99
+        np.asarray(features, dtype=np.float64), threshold=0.99
     )
     probe = _per_sample_gradients(
         params,
@@ -535,7 +542,7 @@ def _measurement(
     )
     curvature_rank = energy_rank(probe, threshold=0.99)
 
-    stepped_stack: dict[str, Array] | None = None
+    stepped_rows: list[dict[str, Array]] = []
     for _ in range(FUTURE_GAIN_ROLLOUT_COUNT):
         rollout_key, draw_key = jr.split(rollout_key)
         draw = np.asarray(
@@ -547,14 +554,11 @@ def _measurement(
             jnp.asarray(validation_labels[draw]),
             jnp.asarray(FUTURE_GAIN_STEP_SIZE, dtype=jnp.float32),
         )
-        if stepped_stack is None:
-            stepped_stack = {name: stepped[name][None] for name in _PARAM_ORDER}
-        else:
-            stepped_stack = {
-                name: jnp.concatenate([stepped_stack[name], stepped[name][None]])
-                for name in _PARAM_ORDER
-            }
-    assert stepped_stack is not None
+        stepped_rows.append({name: stepped[name][None] for name in _PARAM_ORDER})
+    stepped_stack = {
+        name: jnp.concatenate([row[name] for row in stepped_rows])
+        for name in _PARAM_ORDER
+    }
     terminal = _stacked_host_losses(stepped_stack, validation_images, validation_labels)
     reductions = (float(loss) - terminal) / float(loss) if loss > 0.0 else np.zeros_like(terminal)
     future_gain = float(np.mean(reductions))
@@ -684,8 +688,9 @@ def run_readiness_development(
     prefix = f"readiness-{profile.profile_id}-seed{seed}"
     comparisons = []
     for index, task_data in enumerate(tasks):
-        measurement_key, train_key = jr.split(key)
-        del train_key
+        # Advance the root key at every task start so each checkpoint draws
+        # independent diagnostic indices and rollout batches.
+        key, measurement_key = jr.split(key)
         comparisons.append(
             _measurement(
                 params,
@@ -816,6 +821,9 @@ def validate_result(value: object) -> dict[str, object]:
         receipts = block["receipts"]
         if type(receipts) not in (list, tuple) or len(receipts) != 2:
             raise ValueError("every comparison must carry exactly two matched receipts")
+        for item in receipts:
+            if type(item) is not dict or "arm_id" not in item:
+                raise ValueError("every receipt must be an exact dict with an arm_id")
         if [item["arm_id"] for item in receipts] != [
             ARM_READINESS_FULL,
             ARM_GRADIENT_STRENGTH_ONLY,
@@ -835,6 +843,14 @@ def validate_result(value: object) -> dict[str, object]:
                 raise ValueError(
                     "checkpoint properties must agree across matched predictor arms"
                 )
+        # Self-contained invariant (not borrowed from the C.1 oracle): the
+        # future-gain metric is a relative loss reduction, so it must lie in
+        # [0, 1] — the oracle alone only rejects values above one.
+        gain = full.future_relative_loss_reduction
+        if gain < 0.0 or gain > 1.0:
+            raise ValueError(
+                "future_relative_loss_reduction cannot exceed one or be negative"
+            )
         if full.reported_outcome != "inconclusive" or off.reported_outcome != "inconclusive":
             raise ValueError("per-checkpoint receipts must report an inconclusive outcome")
         if full.protocol.seed != seed or off.protocol.seed != seed:
@@ -873,18 +889,27 @@ def _json_envelope(result: Mapping[str, object]) -> str:
 
 
 def _atomic_write(path: Path, text: str) -> None:
+    """Publish one artifact atomically without ever replacing a destination.
+
+    link(2) fails with EEXIST when the destination is taken, so an existing
+    development artifact can never be silently rewritten (append, don't
+    rewrite). The temporary file is removed on every exit path.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
             handle.write(text)
-        os.replace(temporary, path)
-    except BaseException:
+        os.link(temporary, path)
+    except FileExistsError:
+        raise FileExistsError(
+            f"refusing to overwrite existing output (no-replace publication): {path}"
+        ) from None
+    finally:
         try:
             os.unlink(temporary)
         except FileNotFoundError:
             pass
-        raise
 
 
 def main(argv: Sequence[str] | None = None) -> int:

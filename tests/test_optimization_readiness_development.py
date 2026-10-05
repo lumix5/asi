@@ -107,6 +107,7 @@ def test_lane_runs_end_to_end_and_receipts_pass_matched_validation() -> None:
     assert result["stream"]["observations"] == profile.stream_observations
 
 
+@pytest.mark.slow
 def test_validate_result_rejects_tampering() -> None:
     pools = _fixture_pools()
     result = run_readiness_development(*pools, seed=FROZEN_SEEDS[1])
@@ -133,6 +134,26 @@ def test_validate_result_rejects_tampering() -> None:
             receipt["metrics"]["future_relative_loss_reduction"] = 1.5
     with pytest.raises(ValueError, match="cannot exceed one"):
         validate_result(reduced)
+
+    negative = copy.deepcopy(result)
+    for block in negative["comparisons"]:
+        for receipt in block["receipts"]:
+            receipt["metrics"]["future_relative_loss_reduction"] = -0.25
+    # Self-contained lower bound: the C.1 oracle alone accepts negatives.
+    with pytest.raises(ValueError, match="cannot exceed one or be negative"):
+        validate_result(negative)
+
+
+def test_atomic_write_publishes_without_replacing(tmp_path) -> None:
+    fresh = tmp_path / "envelope.json"
+    lane._atomic_write(fresh, "first")
+    assert fresh.read_text(encoding="utf-8") == "first"
+
+    with pytest.raises(FileExistsError, match="no-replace publication"):
+        lane._atomic_write(fresh, "replacement")
+    # The existing artifact is untouched and no temporary files leak.
+    assert fresh.read_text(encoding="utf-8") == "first"
+    assert list(tmp_path.glob("*.tmp")) == []
 
 
 @pytest.mark.slow
