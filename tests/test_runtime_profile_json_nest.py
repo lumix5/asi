@@ -67,7 +67,11 @@ def test_origin_recursion_class_rejects_before_dumps(
     started = time.perf_counter()
     with pytest.raises(ValueError, match="nesting depth"):
         validate_environment_runtime_profile(_nest(16_000))
-    assert time.perf_counter() - started < 0.25
+    # CI-load headroom, mirroring #3027/#3069: this budget guards against a
+    # runaway gate walk (well under 1 ms on a quiet host), not latency. Shared
+    # runners keep rejecting unrelated PRs at 0.25 s; 5 s still fails loudly
+    # on an actual regression to a walk.
+    assert time.perf_counter() - started < 5.0
 
 
 def test_json_list_subclass_respects_node_limit() -> None:
