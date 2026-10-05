@@ -560,7 +560,18 @@ def rule_step(
     )
     s_net = jax.nn.log_softmax(logits)
     s_rls = jax.nn.log_softmax(_RLS_VOTE_TEMP * rls_scores)
-    s_nb = jax.nn.log_softmax(nb_ll / float(input_dim))
+    # The naive-Bayes vote divides by the (generally non-power-of-two) input
+    # dimension. Under ``jax.jit`` the fused max-reduction re-forms that
+    # product, so the subtract-exponential at the argmax row carries a
+    # rounding residual that grows with ``|nb_ll|``; past the residual onset
+    # the compiled vote collapses while eager stays finite, silently
+    # changing the recorded correctness and the persistent vote weights
+    # (issue #2886). Softmax is shift invariant, so centering on both sides
+    # of the scale is exact arithmetic rather than an approximation; the
+    # pre-scale centering blocks the product re-formation and the post-scale
+    # centering bounds the residual that reaches the exponential.
+    nb_scaled = (nb_ll - jax.lax.stop_gradient(jnp.max(nb_ll))) * float(input_dim)
+    s_nb = jax.nn.log_softmax(nb_scaled - jax.lax.stop_gradient(jnp.max(nb_scaled)))
     w_net = state.member_acc[0]
     w_rls = f_rls * state.member_acc[1]
     w_nb = f_nb * state.member_acc[2]

@@ -969,3 +969,65 @@ def test_run_stream_reports_per_task_accuracy() -> None:
     )
     assert per_task.shape == (2,)
     assert float(mean_accuracy) == pytest.approx(float(per_task.mean()), abs=1e-6)
+
+
+def test_nb_vote_matches_eager_under_per_row_compilation() -> None:
+    """The naive-Bayes vote stays bitwise eager-exact under ``jax.jit``.
+
+    The vote reads ``log_softmax(nb_ll / float(input_dim))`` with a
+    non-power-of-two scale (issue #2886). Under ``jax.jit`` on XLA:CPU the
+    fused max-reduction re-forms that product, so the subtract-exponential
+    at the argmax row carries a rounding residual that grows with
+    ``|nb_ll|``; past the residual onset the compiled vote collapses while
+    eager stays finite. Large-but-finite inputs then silently change the
+    recorded correctness and the persistent vote-weight state (the search
+    fitness becomes a property of the compilation mode). The both-sided
+    centered construction pins the compiled vote to the eager result.
+    """
+    import jax
+
+    config = dict(decode_genome(champion_form_genome()))
+    config["nb_member"] = 1.0
+    config["norm"] = 0.0  # raw inputs reach the naive-Bayes likelihood
+    genome = jnp.asarray(genome_from_config(config))
+    params = init_mlp_params(jr.key(14), _TINY)
+    data_key = jr.key(23)
+    kx, ky = jr.split(data_key)
+    n_steps = 96
+    xs = jr.normal(kx, (n_steps, _TINY.input_dim), jnp.float32)
+    ys = jr.randint(ky, (n_steps,), 0, _TINY.n_classes)
+    # Warm up on ordinary magnitudes, then drive the naive-Bayes
+    # log-likelihoods into the large-but-finite compiled-only range.
+    xs = xs.at[64:, 0].multiply(jnp.float32(2.0e6))
+    xs = xs.at[80:, 3].multiply(jnp.float32(2.0e6))
+
+    jit_step = jax.jit(rule_step)
+
+    def trajectory(compiled: bool) -> tuple[np.ndarray, np.ndarray]:
+        state = init_rule_state(params)
+        step_params = params
+        corrects: list[float] = []
+        vote_weights: list[float] = []
+        for index in range(n_steps):
+            step = jit_step if compiled else rule_step
+            step_params, state, correct, _ = step(
+                genome, step_params, state, xs[index], ys[index]
+            )
+            corrects.append(float(correct))
+            vote_weights.append(float(state.member_acc[2]))
+        return np.asarray(corrects), np.asarray(vote_weights)
+
+    eager_corrects, eager_vote_weights = trajectory(compiled=False)
+    compiled_corrects, compiled_vote_weights = trajectory(compiled=True)
+    assert bool(np.all(np.isfinite(eager_corrects)))
+    np.testing.assert_array_equal(
+        compiled_corrects,
+        eager_corrects,
+        err_msg="compiled correctness diverges from eager",
+    )
+    np.testing.assert_array_equal(
+        compiled_vote_weights,
+        eager_vote_weights,
+        err_msg="compiled vote-weight state diverges from eager",
+    )
+
