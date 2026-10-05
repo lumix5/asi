@@ -12,6 +12,10 @@ evaluated with one ``vmap``. Pins:
 - the all-flags-off genome reduces to plain SGD + decoupled decay;
 - mechanism behavior of the two hand-designed meta-arms (surprise budget,
   error-autocorrelation meta decay) and of the shift-triggered resets;
+- the naive-Bayes ensemble vote equals the original division-formula vote
+  (``log_softmax(nb_ll / input_dim)``) on ordinary magnitudes and agrees with
+  it on the argmax across the compiled-only range, and the multiply-by-dim
+  regression form is rejected;
 - search operators (mutation/crossover) and fitness penalty.
 
 Search executions happen through the CLI, never inside pytest.
@@ -1002,23 +1006,49 @@ def test_nb_vote_matches_eager_under_per_row_compilation() -> None:
     xs = xs.at[80:, 3].multiply(jnp.float32(2.0e6))
 
     jit_step = jax.jit(rule_step)
+    p_vote = float(config["vote_decay"])
+    init_acc = 1.0 / float(_TINY.n_classes)
 
-    def trajectory(compiled: bool) -> tuple[np.ndarray, np.ndarray]:
+    def reference_nb_hit(state: RuleState, x: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
+        """Independent expected NB-member hit under the ORIGINAL division formula."""
+        nb_var_safe = jnp.maximum(state.nb_var, rule_discovery._NB_VAR_FLOOR)
+        nb_ll = -0.5 * jnp.sum(
+            jnp.log(nb_var_safe)
+            + (x[None, :] - state.nb_mean) ** 2 / nb_var_safe,
+            axis=1,
+        )
+        reference = jax.nn.log_softmax(nb_ll / float(x.shape[0]))
+        return (jnp.argmax(reference) == y).astype(jnp.float32)
+
+    def trajectory(compiled: bool) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         state = init_rule_state(params)
         step_params = params
         corrects: list[float] = []
         vote_weights: list[float] = []
+        # float32 accumulator: the learner's EMA runs in float32, so the
+        # independent reference must accumulate in the same precision.
+        expected_acc = np.float32(init_acc)
+        expected_accs: list[np.float32] = []
+        p_vote32 = np.float32(p_vote)
         for index in range(n_steps):
+            # Independent expected vote-weight state: the member hit the
+            # original ``log_softmax(nb_ll / input_dim)`` formula produces on
+            # the pre-step state, advanced by the same EMA the learner uses.
+            hit = np.float32(reference_nb_hit(state, xs[index], ys[index]))
+            expected_acc = np.float32(
+                p_vote32 * expected_acc + (np.float32(1.0) - p_vote32) * hit
+            )
+            expected_accs.append(expected_acc)
             step = jit_step if compiled else rule_step
             step_params, state, correct, _ = step(
                 genome, step_params, state, xs[index], ys[index]
             )
             corrects.append(float(correct))
             vote_weights.append(float(state.member_acc[2]))
-        return np.asarray(corrects), np.asarray(vote_weights)
+        return np.asarray(corrects), np.asarray(vote_weights), np.asarray(expected_accs)
 
-    eager_corrects, eager_vote_weights = trajectory(compiled=False)
-    compiled_corrects, compiled_vote_weights = trajectory(compiled=True)
+    eager_corrects, eager_vote_weights, expected_accs = trajectory(compiled=False)
+    compiled_corrects, compiled_vote_weights, _ = trajectory(compiled=True)
     assert bool(np.all(np.isfinite(eager_corrects)))
     np.testing.assert_array_equal(
         compiled_corrects,
@@ -1030,4 +1060,97 @@ def test_nb_vote_matches_eager_under_per_row_compilation() -> None:
         eager_vote_weights,
         err_msg="compiled vote-weight state diverges from eager",
     )
+    np.testing.assert_array_equal(
+        eager_vote_weights,
+        expected_accs,
+        err_msg=(
+            "production naive-Bayes vote trajectory diverges from the original "
+            "division-formula reference; the centering must not change the "
+            "vote's scale semantics"
+        ),
+    )
 
+
+
+def test_nb_vote_is_the_original_division_formula() -> None:
+    """The centered naive-Bayes vote preserves the original division scale.
+
+    The production vote must be the original ``log_softmax(nb_ll /
+    float(input_dim))`` with both-sided centering applied around it (issue
+    #2886). Centering is shift-invariant, so the patched formula must agree
+    with the uncentered division formula in value on ordinary magnitudes and
+    in argmax across the whole large-but-finite range. This pins the scale
+    semantics themselves: an earlier revision of the fix multiplied by
+    ``input_dim`` instead of dividing, which moves pairwise vote differences
+    by ``input_dim**2`` and silently changes predicted classes, correctness,
+    and persistent vote weights. The negative control below rejects exactly
+    that form.
+    """
+    import jax
+
+    input_dim = 16
+
+    def patched_vote(nb_ll: jnp.ndarray) -> jnp.ndarray:
+        return rule_discovery._naive_bayes_vote_log_probs(nb_ll, input_dim)
+
+    def original_vote(nb_ll: jnp.ndarray) -> jnp.ndarray:
+        return jax.nn.log_softmax(nb_ll / float(input_dim))
+
+    # Ordinary rows: the centered construction is shift invariance only, so
+    # the vote values must match the original formula to rounding, including
+    # against an independent float64 reference computation.
+    ordinary = jnp.asarray([[0.0, 1.0, -0.5, 2.0], [-3.0, -1.0, 0.25, 1.5]], jnp.float32)
+    ordinary_f64 = np.asarray(ordinary, dtype=np.float64) / float(input_dim)
+    reference_f64 = ordinary_f64 - _logsumexp_f64(ordinary_f64)
+    np.testing.assert_allclose(
+        np.asarray(patched_vote(ordinary), dtype=np.float64),
+        reference_f64,
+        rtol=1e-5,
+        atol=1e-6,
+        err_msg="patched naive-Bayes vote differs from the float64 division reference",
+    )
+    np.testing.assert_allclose(
+        patched_vote(ordinary),
+        original_vote(ordinary),
+        rtol=1e-6,
+        atol=1e-6,
+        err_msg="patched naive-Bayes vote differs from the original division formula",
+    )
+
+    # Large-but-finite rows spanning the compiled-only onset range from the
+    # #2886 audit (|nb_ll / input_dim| near 2**31). Values may differ by the
+    # eager division rounding at this scale, but the argmax must agree with
+    # the original formula; the rows carry wide margins so the winner is
+    # unambiguous under either construction.
+    scale = jnp.float32(2.0**31 * input_dim)
+    onset = jnp.asarray(
+        [
+            [0.0, 1.0, -0.5, 2.0],
+            [2.0, -0.5, 1.0, 0.0],
+            [-1.0, 0.5, 2.0, -0.25],
+        ],
+        jnp.float32,
+    ) * scale
+    np.testing.assert_array_equal(
+        jnp.argmax(patched_vote(onset), axis=-1),
+        jnp.argmax(original_vote(onset), axis=-1),
+        err_msg="patched vote argmax diverges from the original formula at onset scale",
+    )
+    assert bool(jnp.all(jnp.isfinite(patched_vote(onset))))
+
+    # Negative control: the multiply-by-input_dim form is rejected. It moves
+    # pairwise differences by input_dim**2, so its values cannot match the
+    # original vote on any row with distinct logits.
+    multiplied = jax.nn.log_softmax(
+        (ordinary - jnp.max(ordinary)) * float(input_dim)
+        - jnp.max((ordinary - jnp.max(ordinary)) * float(input_dim))
+    )
+    assert not bool(
+        jnp.allclose(multiplied, original_vote(ordinary), rtol=1e-3, atol=1e-3)
+    ), "multiply form unexpectedly matches the original division formula"
+
+
+def _logsumexp_f64(values: np.ndarray) -> np.ndarray:
+    """Row-wise log-sum-exp in float64, for the independent reference."""
+    peak = values.max(axis=-1, keepdims=True)
+    return peak + np.log(np.exp(values - peak).sum(axis=-1, keepdims=True))
