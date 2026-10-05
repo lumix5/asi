@@ -17,6 +17,7 @@ from __future__ import annotations
 import dataclasses
 import enum
 import hashlib
+import itertools
 import json
 import math
 import re
@@ -55,6 +56,8 @@ from alberta_framework.reference_agent import (
     TransactionPhase,
 )
 from alberta_framework.streams.closed_loop import (
+    LEFT_ACTION,
+    RIGHT_ACTION,
     RiverSwimConfig,
     RiverSwimMDP,
     RiverSwimState,
@@ -1152,6 +1155,94 @@ class SwitchingTwoStateReferenceEnvironment:
             )
 
 
+def _solve_fixed_order_float64_system(
+    matrix: np.ndarray,
+    rhs: np.ndarray,
+) -> np.ndarray | None:
+    """Solve one square float64 system with fixed-order partial pivoting.
+
+    Every arithmetic step is one exactly rounded IEEE-754 float64 operation in
+    a fixed order (elementwise NumPy ufuncs never fuse into FMA, and every
+    reduction is exact ``math.fsum``), so the returned bits are identical on
+    every conforming host. Returns ``None`` when elimination proves the
+    system singular.
+    """
+
+    size = int(matrix.shape[0])
+    augmented = np.hstack(
+        [
+            np.asarray(matrix, dtype=np.float64),
+            np.asarray(rhs, dtype=np.float64)[:, None],
+        ]
+    )
+    for column in range(size):
+        pivot_index = column + int(np.argmax(np.abs(augmented[column:, column])))
+        pivot_value = float(augmented[pivot_index, column])
+        if pivot_value == 0.0:
+            return None
+        if pivot_index != column:
+            augmented[[column, pivot_index]] = augmented[[pivot_index, column]]
+        for row in range(column + 1, size):
+            factor = float(augmented[row, column]) / pivot_value
+            if factor != 0.0:
+                augmented[row, column:] = (
+                    augmented[row, column:] - factor * augmented[column, column:]
+                )
+    solution = np.zeros(size, dtype=np.float64)
+    for row in range(size - 1, -1, -1):
+        tail = math.fsum(augmented[row, row + 1 : size] * solution[row + 1 : size])
+        solution[row] = (float(augmented[row, size]) - tail) / float(augmented[row, row])
+    return solution
+
+
+def _deterministic_stationary_average_reward(
+    transition: np.ndarray,
+    step_rewards: np.ndarray,
+) -> float:
+    """Average reward of a unichain chain, bitwise-stable across host CPUs.
+
+    Keeps the normalized-balance system built by the inherited exact solver in
+    ``streams.closed_loop`` but replaces its ``numpy.linalg.lstsq`` solve,
+    whose OpenBLAS ``dgelsd`` kernel dispatch depends on the host
+    microarchitecture and has been measured to move the float64 result by one
+    ulp across a homogeneous CI runner fleet. The stationary system is
+    instead solved with fixed-order, exactly rounded float64 Gaussian
+    elimination and exact ``math.fsum`` reductions, so every host computes
+    identical bits for the same scheduled kernel.
+    """
+
+    kernel = np.asarray(transition, dtype=np.float64)
+    size = int(kernel.shape[0])
+    row_totals = np.asarray(
+        [math.fsum(row) for row in kernel],
+        dtype=np.float64,
+    )
+    kernel = kernel / row_totals[:, None]
+    generator = kernel.copy()
+    np.fill_diagonal(generator, 0.0)
+    np.fill_diagonal(generator, [-math.fsum(row) for row in generator])
+    balance = generator.T
+    matrix = np.vstack([balance, np.ones((1, size), dtype=np.float64)])
+    rhs = np.zeros(size + 1, dtype=np.float64)
+    rhs[-1] = 1.0
+    # The full consistent system has rank ``size``: drop one equation at a
+    # time, in a fixed order, until the remaining square system is
+    # nonsingular, then normalize the nonnegative solution exactly.
+    for dropped in range(size + 1):
+        rows = [index for index in range(size + 1) if index != dropped]
+        solution = _solve_fixed_order_float64_system(matrix[rows], rhs[rows])
+        if solution is None:
+            continue
+        distribution = np.clip(solution, 0.0, None)
+        total = math.fsum(distribution)
+        if not total > 0.0:
+            continue
+        distribution = distribution / total
+        rewards = np.asarray(step_rewards, dtype=np.float64)
+        return float(math.fsum(distribution * rewards))
+    raise ValueError("stationary solve did not produce a normalized distribution")
+
+
 class _ImmutableRiverSwimMDP(RiverSwimMDP):
     """RiverSwim kernel whose behavior-defining fields cannot drift in-process."""
 
@@ -1192,6 +1283,40 @@ class _ImmutableRiverSwimMDP(RiverSwimMDP):
         if getattr(self, "_reference_life_frozen", False):
             raise AttributeError("reference-life RiverSwim environment is immutable")
         object.__delattr__(self, name)
+
+    def _enumerate_optimal(self) -> tuple[tuple[int, ...], float]:
+        """Exact enumeration with bitwise-reproducible stationary solves.
+
+        The inherited enumeration measures every candidate policy with
+        ``numpy.linalg.lstsq``, whose OpenBLAS kernel choice depends on the
+        host CPU and has been measured to move the float64 gain by one ulp
+        across one CI fleet (SlopDotCash/asi run 34950746882: 26 of 144
+        scorecard shard jobs disagreed with the aggregate job's bits). The
+        reference-life manifest binds this value bitwise —
+        ``oracle_average_reward`` feeds ``manifest_id``, ``config_sha256``,
+        the scorecard's exact ``$.resolved`` comparison, and the execution
+        oracle gate — so the enumeration keeps its candidate set and
+        selection rule but measures every candidate with
+        ``_deterministic_stationary_average_reward``.
+        """
+
+        if self._n_states > RIVERSWIM_REFERENCE_MAX_STATES:
+            raise ValueError(
+                "exact RiverSwim policy enumeration supports at most "
+                f"{RIVERSWIM_REFERENCE_MAX_STATES} states"
+            )
+        best_policy = (LEFT_ACTION,) * self._n_states
+        best_gain = -np.inf
+        for candidate in itertools.product((LEFT_ACTION, RIGHT_ACTION), repeat=self._n_states):
+            actions = np.asarray(candidate, dtype=np.int64)
+            states = np.arange(self._n_states)
+            kernel = self._transitions_np[actions, states]
+            step_rewards = self._rewards_np[states, actions]
+            gain = _deterministic_stationary_average_reward(kernel, step_rewards)
+            if gain > best_gain:
+                best_policy = candidate
+                best_gain = gain
+        return best_policy, float(best_gain)
 
 
 class RiverSwimReferenceEnvironment:
