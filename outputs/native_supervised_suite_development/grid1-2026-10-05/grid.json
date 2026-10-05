@@ -1,0 +1,123 @@
+{
+  "arm_ids": [
+    "online_sgd",
+    "replay_sgd",
+    "running_centroid",
+    "frozen_no_learning"
+  ],
+  "benchmarks": [
+    "split_mnist",
+    "rotated_mnist",
+    "split_cifar100",
+    "ipmnist"
+  ],
+  "development_only": true,
+  "frozen_seeds": [
+    15780,
+    15781,
+    15782,
+    15783
+  ],
+  "head": "f3d32c451ed1c1715e477ad56b782fc7ea89b206",
+  "schema": "asi.native_supervised_grid.v1",
+  "scientific_promotion_allowed": false,
+  "shards": {
+    "ipmnist__seed15780": {
+      "frozen_no_learning": 0.10875,
+      "online_sgd": 0.145,
+      "replay_sgd": 0.1375,
+      "running_centroid": 0.221875
+    },
+    "ipmnist__seed15781": {
+      "frozen_no_learning": 0.09375,
+      "online_sgd": 0.16125,
+      "replay_sgd": 0.1475,
+      "running_centroid": 0.243125
+    },
+    "ipmnist__seed15782": {
+      "frozen_no_learning": 0.10125,
+      "online_sgd": 0.1575,
+      "replay_sgd": 0.1475,
+      "running_centroid": 0.228125
+    },
+    "ipmnist__seed15783": {
+      "frozen_no_learning": 0.096875,
+      "online_sgd": 0.159375,
+      "replay_sgd": 0.154375,
+      "running_centroid": 0.240625
+    },
+    "rotated_mnist__seed15780": {
+      "frozen_no_learning": 0.1,
+      "online_sgd": 0.225,
+      "replay_sgd": 0.225,
+      "running_centroid": 0.25
+    },
+    "rotated_mnist__seed15781": {
+      "frozen_no_learning": 0.075,
+      "online_sgd": 0.125,
+      "replay_sgd": 0.15,
+      "running_centroid": 0.25
+    },
+    "rotated_mnist__seed15782": {
+      "frozen_no_learning": 0.1,
+      "online_sgd": 0.175,
+      "replay_sgd": 0.05,
+      "running_centroid": 0.2
+    },
+    "rotated_mnist__seed15783": {
+      "frozen_no_learning": 0.125,
+      "online_sgd": 0.175,
+      "replay_sgd": 0.15,
+      "running_centroid": 0.125
+    },
+    "split_cifar100__seed15780": {
+      "frozen_no_learning": 0.01875,
+      "online_sgd": 0.19375,
+      "replay_sgd": 0.0875,
+      "running_centroid": 0.05
+    },
+    "split_cifar100__seed15781": {
+      "frozen_no_learning": 0.00625,
+      "online_sgd": 0.1625,
+      "replay_sgd": 0.04375,
+      "running_centroid": 0.01875
+    },
+    "split_cifar100__seed15782": {
+      "frozen_no_learning": 0.0125,
+      "online_sgd": 0.18125,
+      "replay_sgd": 0.06875,
+      "running_centroid": 0.0625
+    },
+    "split_cifar100__seed15783": {
+      "frozen_no_learning": 0.00625,
+      "online_sgd": 0.16875,
+      "replay_sgd": 0.0375,
+      "running_centroid": 0.05625
+    },
+    "split_mnist__seed15780": {
+      "frozen_no_learning": 0.15,
+      "online_sgd": 0.4,
+      "replay_sgd": 0.25,
+      "running_centroid": 0.4
+    },
+    "split_mnist__seed15781": {
+      "frozen_no_learning": 0.075,
+      "online_sgd": 0.35,
+      "replay_sgd": 0.225,
+      "running_centroid": 0.425
+    },
+    "split_mnist__seed15782": {
+      "frozen_no_learning": 0.075,
+      "online_sgd": 0.45,
+      "replay_sgd": 0.3,
+      "running_centroid": 0.425
+    },
+    "split_mnist__seed15783": {
+      "frozen_no_learning": 0.1,
+      "online_sgd": 0.45,
+      "replay_sgd": 0.225,
+      "running_centroid": 0.45
+    }
+  },
+  "suite_schema": "asi.native_supervised_cl_development.v1"
+}

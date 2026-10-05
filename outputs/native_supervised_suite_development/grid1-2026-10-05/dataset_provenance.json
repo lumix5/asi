@@ -1,0 +1,30 @@
+{
+  "array_shapes": {
+    "cifar100": [
+      50000,
+      3072
+    ],
+    "mnist": [
+      60000,
+      28,
+      28
+    ]
+  },
+  "caller_transform": "uint8 pixel bytes [0,255] scaled to float32 [0,1] (images / 255.0); no other transform",
+  "cifar100_tar_md5": "eb9058c3a382ffc7106e4002c42a8d852f12",
+  "cifar100_tar_sha256": "85cd44d02ba6437773c5bbd22e183051d648de2e7d6b014e1ef29b855ba677a7",
+  "dataset_sha256_by_benchmark": {
+    "ipmnist": "79e96cc862a7cf832cbf4bc6bc419fc51e3951e34c7cce9677ee279567cfbde2",
+    "rotated_mnist": "79e96cc862a7cf832cbf4bc6bc419fc51e3951e34c7cce9677ee279567cfbde2",
+    "split_cifar100": "8a389ae908dcce5091d5b9b80409f17acd6d75d7e90f4d324d1b3c892dcca239",
+    "split_mnist": "79e96cc862a7cf832cbf4bc6bc419fc51e3951e34c7cce9677ee279567cfbde2"
+  },
+  "examples_per_task": 8,
+  "head": "f3d32c451ed1c1715e477ad56b782fc7ea89b206",
+  "mnist_openml_arff_gz_sha256": "fe4410d8dbb50f6db6482b187557c5cb8bccfbcec74eeb6abc47c858f4ffab78",
+  "replay_capacity": 16,
+  "runner_sha256": "9478da6d62f8ee42e91aaeac286ac4b7c2ffdc8feda382d93ccbcbf69b09546e",
+  "schema": "asi.native_supervised_grid_provenance.v1",
+  "suite_module_path": "/home/lumix/asi-native-suite/alberta_framework/benchmarks/native_supervised_suite.py",
+  "suite_module_sha256": "978104a27a6dc4a68fababcd0970a01c3930198f4f91aa782b2463300caefc5e"
+}

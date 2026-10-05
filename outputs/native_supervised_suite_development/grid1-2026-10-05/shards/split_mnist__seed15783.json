@@ -1,0 +1,120 @@
+{
+  "arms": [
+    {
+      "arm_id": "online_sgd",
+      "online_accuracy": 0.45,
+      "receipt": {
+        "data_bytes_read": 125600,
+        "data_steps": 40,
+        "elapsed_ns": 13842937,
+        "logical_compute_units": 238,
+        "model_queries": 119,
+        "parameter_updates": 79,
+        "peak_replay_bytes": 0,
+        "persistent_bytes": 31400,
+        "replay_inserts": 0,
+        "replay_samples": 0,
+        "timing_telemetry_only": true
+      },
+      "task_accuracies": [
+        0.75,
+        0.5,
+        0.5,
+        0.25,
+        0.25
+      ]
+    },
+    {
+      "arm_id": "replay_sgd",
+      "online_accuracy": 0.225,
+      "receipt": {
+        "data_bytes_read": 125600,
+        "data_steps": 40,
+        "elapsed_ns": 13766946,
+        "logical_compute_units": 317,
+        "model_queries": 119,
+        "parameter_updates": 79,
+        "peak_replay_bytes": 50240,
+        "persistent_bytes": 31400,
+        "replay_inserts": 40,
+        "replay_samples": 39,
+        "timing_telemetry_only": true
+      },
+      "task_accuracies": [
+        0.625,
+        0.0,
+        0.25,
+        0.0,
+        0.25
+      ]
+    },
+    {
+      "arm_id": "running_centroid",
+      "online_accuracy": 0.45,
+      "receipt": {
+        "data_bytes_read": 125600,
+        "data_steps": 40,
+        "elapsed_ns": 1224836,
+        "logical_compute_units": 120,
+        "model_queries": 40,
+        "parameter_updates": 40,
+        "peak_replay_bytes": 0,
+        "persistent_bytes": 31400,
+        "replay_inserts": 0,
+        "replay_samples": 0,
+        "timing_telemetry_only": true
+      },
+      "task_accuracies": [
+        0.875,
+        0.375,
+        0.5,
+        0.25,
+        0.25
+      ]
+    },
+    {
+      "arm_id": "frozen_no_learning",
+      "online_accuracy": 0.1,
+      "receipt": {
+        "data_bytes_read": 125600,
+        "data_steps": 40,
+        "elapsed_ns": 180081,
+        "logical_compute_units": 80,
+        "model_queries": 40,
+        "parameter_updates": 0,
+        "peak_replay_bytes": 0,
+        "persistent_bytes": 31400,
+        "replay_inserts": 0,
+        "replay_samples": 0,
+        "timing_telemetry_only": true
+      },
+      "task_accuracies": [
+        0.5,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    }
+  ],
+  "benchmark_id": "split_mnist",
+  "dataset_sha256": "79e96cc862a7cf832cbf4bc6bc419fc51e3951e34c7cce9677ee279567cfbde2",
+  "development_only": true,
+  "examples_per_task": 8,
+  "input_dim": 784,
+  "n_classes": 10,
+  "negative_results_must_be_retained": true,
+  "replay_capacity": 16,
+  "runtime_identity": [
+    "3.14.4",
+    "0.11.0",
+    "2.5.1",
+    "cpu"
+  ],
+  "schedule_sha256": "d10133dcf2d6dc48ae5abe1c0cdc990593327197ecee38a23d076e7af65b2a2e",
+  "schema": "asi.native_supervised_cl_development.v1",
+  "scientific_promotion_allowed": false,
+  "seed": 15783,
+  "source_sha256": "978104a27a6dc4a68fababcd0970a01c3930198f4f91aa782b2463300caefc5e",
+  "task_information_used_by_learner": false
+}

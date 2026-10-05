@@ -1,0 +1,3 @@
+ipmnist__seed15781: exit 0
+source_sha256=978104a27a6dc4a68fababcd0970a01c3930198f4f91aa782b2463300caefc5e
+runtime_identity=('3.14.4', '0.11.0', '2.5.1', 'cpu')
