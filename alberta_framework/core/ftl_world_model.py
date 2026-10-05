@@ -48,10 +48,16 @@ from jax import Array
 from jaxtyping import Float, Int
 
 from alberta_framework._float32 import round_real_to_float32
+from alberta_framework._scan_resources import ScanBudget, require_scan_steps
 from alberta_framework.core._float32_scalars import validated_float32_scalar
 
 _FLOAT32_TINY = 2.0**-126
 _INT32_MAX = 2**31 - 1
+# Sibling learning-loop protocol last-fit (``core/learners.py``,
+# ``core/dreaming.py``): 10_000 scanned steps. Leftover INT32 admits a
+# 10**9-step stream with observation_dim=1 into ``jax.lax.scan`` —
+# hang/OOM, not an INT32 leftover.
+_FTL_ROLLOUT_BUDGET = ScanBudget("sparse FTL world-model rollout", maximum_steps=10_000)
 _ACTUAL_INT_TYPES = frozenset(
     {
         int,
@@ -606,7 +612,11 @@ def run_sparse_ftl_world_model(
     actions: Array,
     next_observations: Array,
 ) -> SparseFTLWorldModelLearningResult:
-    """Run one uninterrupted, predict-before-update transition stream."""
+    """Run one uninterrupted, predict-before-update transition stream.
+
+    The scan length is bounded by the documented sparse FTL world-model
+    rollout budget of 10,000 steps.
+    """
     if type(model) is not SparseFTLWorldModel:
         raise TypeError("model must be an exact SparseFTLWorldModel")
     if type(state) is not SparseFTLWorldModelState:
@@ -618,6 +628,7 @@ def run_sparse_ftl_world_model(
             f"observations must have shape (num_steps, {model.config.observation_dim})"
         )
     num_steps = _require_int32("scan sequence length", obs_shape[0], minimum=1)
+    num_steps = require_scan_steps("scan sequence length", num_steps, _FTL_ROLLOUT_BUDGET)
 
     next_obs_shape = _require_scan_array_metadata("next_observations", next_observations)
     if next_obs_shape != (num_steps, model.config.observation_dim):
