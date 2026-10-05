@@ -74,61 +74,89 @@ def _resource_counts(n_actions: int, feature_dim: int) -> tuple[int, int]:
     return trainable, state_nbytes
 
 
-def _temperature_centered_logits(
+# float32's finite minimum, used to keep shifted log-probabilities representable
+# when the pairwise logit distance itself exceeds the float32 range (see
+# ``_temperature_scaled_logits``).
+_TEMPERATURE_SCALED_LOGITS_FLOAT32_MIN = float(np.finfo(np.float32).min)
+
+
+def _temperature_scaled_logits(
     logits: Float[Array, " n_actions"],
     temperature: float,
 ) -> Float[Array, " n_actions"]:
-    """Twice-center ``logits / temperature`` so fused softmax stays exact.
+    """Scale logits for softmax without exposing a rounded argmax to fusion.
 
     Under ``jax.jit`` on XLA:CPU, ``softmax(logits / T)`` with a
-    non-power-of-two ``T`` can return NaN for finite inputs once
-    ``|logits / T|`` is large: the scale product is recomputed inside the
-    subtract-exponential fusion and LLVM contracts ``scaled - max(scaled)``
-    into one FMA, so the argmax difference is the product rounding error
-    instead of exactly zero, and the exponential overflows (``inf/inf``) or
-    underflows (``0/0``) (SlopDotCash/asi#2886).
+    non-power-of-two ``T`` can return NaN for finite inputs: the compiler
+    recomputes the scale product inside both fused subcomputations of the
+    softmax, and the contracted multiply-then-subtract leaves a rounding
+    residual at the argmax instead of an exact zero; once ``|logits / T|``
+    is large enough that residual drives the exponential to ``inf`` or
+    ``0`` (SlopDotCash/asi#2886).
 
-    Both centerings below are exact (softmax and log-softmax are shift
-    invariant) and each blocks one half of that failure:
+    Both shifts below are exact (softmax and log-softmax are shift
+    invariant) and each blocks one of the two recomputations, the
+    construction measured immune across shapes in the issue report.
+    Measured on linux x86_64, JAX 0.11.0, single-threaded XLA:CPU: the
+    plain expression returns compiled-only ``[nan, nan]`` where eager is
+    ``[1, 0]`` for ``logits=[4e9, 0]`` at ``T=0.7``, and this construction
+    returns the eager answer on every onset-scale probe.  The issue's
+    original measurements were arm64-only; the defect is therefore not
+    arm64-specific, but whether a given fused shape triggers it remains
+    host- and toolchain-dependent — through this module's public API the
+    failure was only ever reproduced on arm64, so the macos-14 CI panel
+    runs the onset-scale regressions.
 
-    - The first centering's output feeds both the second ``max`` reduction
-      and the second subtraction, so the compiler must materialize it rather
-      than re-form the scale product next to a second subtraction.
-    - The second centering subtracts the first centering's own maximum, so
-      even when contraction leaves a positive rounding residual at the argmax,
-      that residual is removed exactly before the exponential.
+    When the temperature exceeds one, halving both operands first is exact
+    and keeps the pre-scale centering finite for opposite finite extreme
+    logits whose pairwise distance exceeds the float32 maximum — inputs
+    where the plain ``logits / temperature`` expression stays finite and
+    must stay finite.  For temperatures at or below one, the centering
+    subtraction and the division itself can still overflow: float32 cannot
+    represent the pairwise distance of ``[3e38, -3e38]``, so the shifted
+    quotient reaches ``-inf`` and downstream ``probability *
+    log_probability`` entropy products evaluate ``0 * -inf`` as NaN.  The
+    negative tail is therefore clamped to the finite float32 minimum,
+    which is exact for every reported quantity: ``exp(floor)`` underflows
+    to zero exactly like ``exp(-inf)``, so softmax results, derived
+    probabilities, and the normalization sum are unchanged, while
+    log-probabilities stay finite and gradients remain finite.  In that
+    regime the plain expression is itself non-finite, so this is a
+    documented, deliberate deviation from it, not a change of any finite
+    answer.
 
-    The centerings operate on the *scaled* values, never on the raw logits:
-    subtracting the raw maximum can overflow to ``-inf`` for opposite finite
-    extremes whose pairwise distance exceeds the float32 maximum (for example
-    ``[3.2e38, -0.4e38]`` at ``temperature=2.0``), a regime where the plain
-    ``logits / temperature`` expression stays finite and must stay finite.
-    Centering after the scale therefore keeps every intermediate finite
-    wherever ``jax.nn.softmax(logits / temperature)`` is finite, and — on a
-    backend that does not contract the first subtraction — is bitwise
-    identical to it. Gradients are unaffected: the ``stop_gradient`` maxima
-    are piecewise constant almost everywhere, so the centerings contribute
-    exactly the same softmax gradient as the plain expression.
+    Gradients are unchanged: the ``stop_gradient`` maxima are piecewise
+    constant almost everywhere, matching the internal ``stop_gradient``
+    that ``jax.nn.softmax`` already applies.
     """
-    scaled = logits / temperature
-    centered = scaled - jax.lax.stop_gradient(jnp.max(scaled))
-    return centered - jax.lax.stop_gradient(jnp.max(centered))
+    if temperature > 1.0:
+        # Halving both operands is exact and prevents centering opposite
+        # finite extremes from overflowing before a large temperature
+        # brings them in range.
+        logits = logits * jnp.asarray(0.5, dtype=logits.dtype)
+        temperature = temperature * 0.5
+    # Both shifts preserve softmax/log-softmax while keeping division in range.
+    centered = logits - jax.lax.stop_gradient(jnp.max(logits))
+    scaled = centered / jnp.asarray(temperature, dtype=logits.dtype)
+    shifted = scaled - jax.lax.stop_gradient(jnp.max(scaled))
+    # NaN propagates through maximum, so genuine NaN inputs still surface.
+    return jnp.maximum(shifted, _TEMPERATURE_SCALED_LOGITS_FLOAT32_MIN)
 
 
 def _stable_temperature_softmax(
     logits: Float[Array, " n_actions"],
     temperature: float,
 ) -> Float[Array, " n_actions"]:
-    """Softmax over temperature-scaled logits; see :func:`_temperature_centered_logits`."""
-    return jax.nn.softmax(_temperature_centered_logits(logits, temperature))
+    """Softmax over temperature-scaled logits; see :func:`_temperature_scaled_logits`."""
+    return jax.nn.softmax(_temperature_scaled_logits(logits, temperature))
 
 
 def _stable_temperature_log_softmax(
     logits: Float[Array, " n_actions"],
     temperature: float,
 ) -> Float[Array, " n_actions"]:
-    """Log-softmax over temperature-scaled logits; see :func:`_temperature_centered_logits`."""
-    return jax.nn.log_softmax(_temperature_centered_logits(logits, temperature))
+    """Log-softmax over temperature-scaled logits; see :func:`_temperature_scaled_logits`."""
+    return jax.nn.log_softmax(_temperature_scaled_logits(logits, temperature))
 
 
 # Matches the class of ceiling already established for other scan-driven

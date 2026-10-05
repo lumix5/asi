@@ -962,15 +962,94 @@ def test_compiled_sample_action_follows_learned_policy_after_large_scale_update(
     assert np.isfinite(float(sample.action_probability))
 
 
+def test_compiled_helpers_match_eager_at_issue_onset_scale() -> None:
+    """Helpers must equal eager at the #2886 onset scale, compiled, per row.
+
+    On linux x86_64, JAX 0.11.0, single-threaded XLA:CPU, the plain
+    ``jax.nn.softmax(logits / T)`` expression returns compiled-only
+    ``[nan, nan]`` where eager returns ``[1, 0]`` for these exact rows, so
+    restoring the plain expression inside the helpers fails this test on
+    this host (mutation-checked).  The rows sit past the measured onset
+    ``|logits / T| >= 2**31`` for a non-power-of-two temperature.  Probes
+    stay per-row on purpose: batched ``vmap`` fusions were measured to mask
+    this defect class.
+    """
+    for values, temperature in (
+        ([4e9, 0.0], 0.7),
+        ([8e9, 1e9], 0.7),
+        ([1e10, -1e10], 0.7),
+        ([2.5e9, 0.0], 1.1),
+    ):
+        logits = jnp.asarray(values, dtype=jnp.float32)
+        eager_probabilities = np.asarray(jax.nn.softmax(logits / temperature))
+        eager_logs = np.asarray(jax.nn.log_softmax(logits / temperature))
+        assert np.all(np.isfinite(eager_probabilities)), (values, temperature)
+        compiled_probabilities = np.asarray(
+            jax.jit(lambda x: _stable_temperature_softmax(x, temperature))(logits)
+        )
+        compiled_logs = np.asarray(
+            jax.jit(lambda x: _stable_temperature_log_softmax(x, temperature))(logits)
+        )
+        context = (values, temperature)
+        assert np.all(np.isfinite(compiled_probabilities)), context
+        assert np.all(np.isfinite(compiled_logs)), context
+        np.testing.assert_allclose(
+            compiled_probabilities,
+            eager_probabilities,
+            rtol=1e-6,
+            atol=0,
+            err_msg=str(context),
+        )
+        np.testing.assert_allclose(
+            compiled_logs,
+            eager_logs,
+            rtol=1e-6,
+            atol=0,
+            err_msg=str(context),
+        )
+
+
+def test_compiled_helpers_stay_finite_when_logit_distance_overflows() -> None:
+    """Distance-overflow rows stay finite in both domains under compilation.
+
+    float32 cannot represent the pairwise distance of ``[3e38, -3e38]``, so
+    the plain expression (and the previously reviewed scaled-domain form)
+    evaluates ``-inf - (-inf)``-class intermediates and returns ``[nan,
+    nan]`` where the input is finite.  The halving pre-conditioner does not
+    apply at ``T <= 1``, so the negative tail is clamped to the finite
+    float32 minimum instead: probabilities are unchanged (``exp(floor)``
+    underflows to zero exactly like ``exp(-inf)``), and log-probabilities
+    stay finite so downstream ``probability * log_probability`` entropy
+    products cannot produce ``0 * -inf``.  Where the plain expression is
+    itself non-finite this is a documented deviation from it, not a change
+    of any finite answer.
+    """
+    logits = jnp.asarray([3e38, -3e38], dtype=jnp.float32)
+    temperature = 0.5
+    compiled_probabilities = np.asarray(
+        jax.jit(lambda x: _stable_temperature_softmax(x, temperature))(logits)
+    )
+    compiled_logs = np.asarray(
+        jax.jit(lambda x: _stable_temperature_log_softmax(x, temperature))(logits)
+    )
+    assert np.all(np.isfinite(compiled_probabilities))
+    assert np.all(np.isfinite(compiled_logs))
+    np.testing.assert_allclose(float(np.sum(compiled_probabilities)), 1.0, atol=1e-7)
+    assert int(np.argmax(compiled_probabilities)) == 0
+    assert float(compiled_logs[0]) == pytest.approx(0.0, abs=1e-6)
+    assert float(compiled_logs[1]) >= -3.4029e38
+
+
 def test_opposite_extreme_logits_keep_eager_finiteness_at_moderate_temperature() -> None:
     """Opposite finite extremes at T=2.0 must match eager, not overflow to -inf.
 
-    Review-executed regression at the previously reviewed head: centering the
-    raw logits computed ``-0.4e38 - 3.2e38`` before the scale, which overflows
-    float32, so the log-softmax helper returned ``[0, -inf]`` where eager
-    ``log_softmax(logits / 2)`` returns ``[0, -1.8e38]``, and the committed
-    loss then evaluated ``0 * -inf``. The centerings now run on the scaled
-    values, which stay finite here both eagerly and compiled.
+    Review-executed regression at an earlier head: centering the raw logits
+    without the halving pre-conditioner computed ``-0.4e38 - 3.2e38`` before
+    the scale, which overflows float32, so the log-softmax helper returned
+    ``[0, -inf]`` where eager ``log_softmax(logits / 2)`` returns
+    ``[0, -1.8e38]``, and the committed loss then evaluated ``0 * -inf``.
+    Dropping the halving pre-conditioner reintroduces exactly that
+    mismatch, so this test kills the guard-removal mutant.
     """
     logits = jnp.asarray([3.2e38, -0.4e38], dtype=jnp.float32)
     temperature = 2.0
@@ -980,7 +1059,7 @@ def test_opposite_extreme_logits_keep_eager_finiteness_at_moderate_temperature()
     probabilities = np.asarray(_stable_temperature_softmax(logits, temperature))
     log_probabilities = np.asarray(_stable_temperature_log_softmax(logits, temperature))
     compiled_log_probabilities = np.asarray(
-        jax.jit(_stable_temperature_log_softmax)(logits, temperature)
+        jax.jit(lambda x: _stable_temperature_log_softmax(x, temperature))(logits)
     )
     assert np.all(np.isfinite(probabilities))
     assert np.all(np.isfinite(log_probabilities))
@@ -1037,7 +1116,10 @@ def test_stable_helpers_track_eager_across_temperature_and_scale_grid() -> None:
     cases.append((np.asarray([3.2e38, -0.4e38], np.float32), 2.0))
     cases.append((np.asarray([3e38, -3e38], np.float32), 4.0))
     cases.append((np.asarray([1e19, -1e19], np.float32), 0.7))
-    # Base itself overflows here; the helpers must follow base, not differ.
+    # Base itself is non-finite here (float32 cannot represent the pairwise
+    # distance); the helpers deliberately return the finite clamped answer
+    # instead of following base into NaN — see
+    # test_compiled_helpers_stay_finite_when_logit_distance_overflows.
     cases.append((np.asarray([3e38, -3e38], np.float32), 0.5))
     cases.append((np.asarray([3.2e38, -0.4e38], np.float32), 0.7))
     for values, temperature in cases:
@@ -1047,12 +1129,22 @@ def test_stable_helpers_track_eager_across_temperature_and_scale_grid() -> None:
         probabilities = np.asarray(_stable_temperature_softmax(logits, temperature))
         logs = np.asarray(_stable_temperature_log_softmax(logits, temperature))
         context = (values.tolist(), temperature)
-        assert np.array_equal(
-            np.isfinite(probabilities), np.isfinite(eager_probabilities)
-        ), context
-        assert np.array_equal(np.isfinite(logs), np.isfinite(eager_logs)), context
-        finite = np.isfinite(eager_logs)
-        if not np.all(finite):
+        base_finite = bool(np.all(np.isfinite(eager_probabilities))) and bool(
+            np.all(np.isfinite(eager_logs))
+        )
+        if not base_finite:
+            # Documented deviation: the clamped helpers stay finite where the
+            # plain expression is already non-finite; probabilities still sum
+            # to one and keep the eager argmax.
+            assert np.all(np.isfinite(probabilities)), context
+            assert np.all(np.isfinite(logs)), context
+            np.testing.assert_allclose(
+                float(np.sum(probabilities)), 1.0, atol=1e-6, err_msg=str(context)
+            )
+            assert (
+                int(np.argmax(probabilities)) == int(np.argmax(eager_probabilities))
+                or np.isnan(eager_probabilities).all()
+            ), context
             continue
         np.testing.assert_allclose(
             logs, eager_logs, rtol=1e-5, atol=1e-6, err_msg=str(context)

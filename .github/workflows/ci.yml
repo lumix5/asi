@@ -234,6 +234,14 @@ jobs:
             tests/test_actor_critic.py::test_actor_critic_update_is_jittable \
             tests/test_action_conditioned_world_model.py::test_action_conditioned_world_model_update_and_prediction_shapes \
             tests/test_actual_int_types_closure.py \
+            tests/test_behavior_model.py::test_compiled_predict_probabilities_stay_finite_after_large_scale_update \
+            tests/test_behavior_model.py::test_compiled_input_loss_gradient_stays_valid_after_large_scale_update \
+            tests/test_behavior_model.py::test_compiled_follow_up_update_applies_after_large_scale_update \
+            tests/test_behavior_model.py::test_compiled_sample_action_follows_learned_policy_after_large_scale_update \
+            tests/test_behavior_model.py::test_compiled_helpers_match_eager_at_issue_onset_scale \
+            tests/test_behavior_model.py::test_compiled_helpers_stay_finite_when_logit_distance_overflows \
+            tests/test_behavior_model.py::test_opposite_extreme_logits_keep_eager_finiteness_at_moderate_temperature \
+            tests/test_behavior_model.py::test_input_loss_gradient_stays_valid_for_opposite_extreme_logits \
             tests/test_ipmnist_campaign_tools.py::test_ceiling_publication_refuses_to_replace_existing_bytes \
             -q \
             -o addopts="" \
