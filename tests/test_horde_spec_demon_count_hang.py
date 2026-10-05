@@ -2,7 +2,8 @@
 """HordeSpec rejects oversized demon lists before from_config reconstruction hang.
 
 Origin ``HordeSpec.from_config`` rebuilt every demon dict with no count bound.
-A cheap ``[spec] * 400_000`` pointer-repeat took 3.736s on origin/main.
+A cheap ``[spec] * 400_000`` pointer-repeat took 3.736s on origin/main
+(5.8s re-measured during review on a quiet host).
 """
 
 from __future__ import annotations
@@ -55,12 +56,30 @@ def test_last_fit_demon_count_is_accepted() -> None:
 
 
 @pytest.mark.parametrize("count", [4097, 400_000])
-def test_from_config_rejects_oversized_demon_list_before_rebuild(count: int) -> None:
+def test_from_config_rejects_oversized_demon_list_before_rebuild(
+    monkeypatch: pytest.MonkeyPatch,
+    count: int,
+) -> None:
+    """The demon-count gate must fire before any ``GVFSpec.from_config`` walk.
+
+    The ordering is asserted structurally: both the count gate and the
+    post-rebuild ``create_horde_spec`` gate raise the identical
+    ``at most 4096`` message, so a gate removed or moved after the rebuild
+    walk would still satisfy ``pytest.raises``. The monkeypatched
+    ``GVFSpec.from_config`` therefore fails this test the moment any demon
+    is reconstructed before the bound fires. The wall-clock check below is
+    not a latency contract — it only guards an accidentally runaway gate
+    under shared-CI-runner load.
+    """
+
+    def fail_rebuild(*_args: object, **_kwargs: object) -> GVFSpec:
+        raise AssertionError("GVFSpec.from_config ran before the demon-count gate")
+
+    monkeypatch.setattr(GVFSpec, "from_config", fail_rebuild)
     started = time.perf_counter()
     with pytest.raises(ValueError, match="at most 4096"):
         HordeSpec.from_config({"demons": [_DEMON_PAYLOAD] * count})
-    # Not a latency contract: only guards the spec-rebuild hang. 5 s tolerates
-    # shared-CI-runner load; 0.5 s flakes the same way 0.25 s did (run 36962287499).
+    # Anti-runaway guard only; the ordering above is pinned structurally.
     assert time.perf_counter() - started < 5.0
 
 
@@ -68,8 +87,10 @@ def test_create_horde_spec_rejects_oversized_pointer_repeat() -> None:
     started = time.perf_counter()
     with pytest.raises(ValueError, match="at most 4096"):
         create_horde_spec([_demon()] * 400_000)
-    # Not a latency contract: only guards the spec-rebuild hang. 5 s tolerates
-    # shared-CI-runner load; 0.5 s flakes the same way 0.25 s did (run 36962287499).
+    # Not a latency contract: this case has no timing-detectable regression —
+    # the post-tuple gate raises the identical message, and the ungated
+    # pointer-copy walk itself is ~4 ms. The budget is an anti-runaway guard
+    # against accidental gate walk, sized for shared-CI-runner load.
     assert time.perf_counter() - started < 5.0
 
 

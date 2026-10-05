@@ -25,8 +25,11 @@ def test_mpc_rejects_unbounded_horizon_before_product_hang() -> None:
     started = time.perf_counter()
     with pytest.raises(ValueError, match="planning_horizon"):
         _mpc_action(observation, goal, MAX_PLANNING_HORIZON + 6, _identity_predict)
-    # Not a latency contract: only guards the product-enumeration hang. 5 s
-    # tolerates shared-CI-runner load; 0.25 s flaked at 0.60 s in run 36962287499.
+    # Not a latency contract, but here the wall-clock is a live reorder
+    # detector: the ungated 4**(MAX+6) enumeration measures ~10.7 s
+    # (~10 µs per candidate), well above this budget, while the gated
+    # rejection costs ~2.6 ms on a quiet host. The budget absorbs
+    # shared-CI-runner load of the class observed in run 36962287499.
     assert time.perf_counter() - started < 5.0
 
 

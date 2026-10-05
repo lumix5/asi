@@ -64,6 +64,7 @@ def test_origin_recursion_class_rejects_before_loads(
             policy_sha256="0" * 64,
             environment_config_json=_nested_json(16_000),
         )
-    # Not a latency contract: only guards a runaway gate walk. 5 s tolerates
-    # shared-CI-runner load; 0.25 s flaked at 0.60 s in CI run 36962287499.
+    # Anti-runaway guard only; the ordering above is pinned structurally.
+    # The 5 s budget absorbs the shared-CI-runner contention class observed
+    # in run 36962287499 (0.60 s against the runtime-profile nest gate).
     assert time.perf_counter() - started < 5.0
