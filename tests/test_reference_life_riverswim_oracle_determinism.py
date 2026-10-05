@@ -112,11 +112,23 @@ def test_reference_life_oracle_bits_survive_blas_kernel_dispatch() -> None:
 
 
 def _exact_stationary_gain(kernel: np.ndarray, rewards: np.ndarray) -> float:
-    """Exact rational stationary gain, independent of float64 solving."""
+    """Exact rational stationary gain, independent of float64 solving.
+
+    Kernel entries are converted through ``float`` before ``Fraction``:
+    NumPy float32 scalars are not ``numbers.Rational`` and are not accepted
+    by ``fractions.Fraction`` on CPython < 3.14 (only a 3.14 interpreter
+    routes them through ``as_integer_ratio``), so the conversion must be
+    explicit to stay exact and portable across the supported 3.12+ floor.
+    The ``float`` cast of a float32 scalar is exact, so the rational
+    arithmetic is unchanged.
+    """
 
     n = int(kernel.shape[0])
     normalized = [
-        [Fraction(value) / sum(Fraction(value) for value in row) for value in row]
+        [
+            Fraction(float(value)) / sum(Fraction(float(cell)) for cell in row)
+            for value in row
+        ]
         for row in kernel
     ]
     system = [
